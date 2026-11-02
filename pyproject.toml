@@ -1,0 +1,35 @@
+[project]
+name = "gridbalance"
+version = "0.1.0"
+description = "Configurable power grid design: cost, robustness and supply trade-offs on graphs"
+readme = "README.md"
+authors = [
+    { name = "Juyens", email = "joseph.juliuscb@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pywebview>=6.2.1",
+]
+
+[project.scripts]
+gridbalance = "gridbalance.app:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N", "B", "C4", "SIM", "RET", "PTH", "TID", "RUF", "ARG"]
+ignore = [
+    # Protocol implementations must keep the full signature, used or not.
+    "ARG002",
+]
