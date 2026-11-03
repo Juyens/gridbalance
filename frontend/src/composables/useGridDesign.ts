@@ -80,6 +80,8 @@ export function useGridDesign() {
   }
 
   watch(weights, () => {
+    latestRequest += 1
+    designing.value = caseData.value !== null
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(requestDesign, DEBOUNCE_MS)
   })

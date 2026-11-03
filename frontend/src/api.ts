@@ -14,6 +14,7 @@ export interface BackendApi {
   open_case(): Promise<CaseData | null>
   design(weights: Weights): Promise<DesignData>
   save_layout(positions: Position[]): Promise<void>
+  save_export(kind: 'png' | 'csv', content: string): Promise<boolean>
 }
 
 declare global {

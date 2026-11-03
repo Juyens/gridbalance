@@ -8,6 +8,7 @@ const props = defineProps<{
   caseData: CaseData
   design: DesignData | null
   designing: boolean
+  step: number | null
 }>()
 
 const lineCount = computed(() =>
@@ -33,7 +34,7 @@ const rows = computed(() => {
 <template>
   <section class="metrics-panel" :class="{ stale: designing }" :aria-busy="designing">
     <h2>
-      {{ t('results') }}
+      {{ step === null ? t('results') : t('stepResults', { step: formatNumber(step) }) }}
       <small v-if="designing" role="status">{{ t('updating') }}</small>
     </h2>
 
@@ -94,7 +95,13 @@ const rows = computed(() => {
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.name" :class="{ highlight: row.name === 'design' }">
-              <th scope="row">{{ t(row.name) }}</th>
+              <th scope="row">
+                {{
+                  row.name === 'design' && step !== null
+                    ? t('stepShort', { step: formatNumber(step) })
+                    : t(row.name)
+                }}
+              </th>
               <td>{{ formatNumber(row.metrics.cost) }}</td>
               <td>{{ formatNumber(row.metrics.bridges) }}</td>
               <td>{{ formatPercent(row.metrics.suppliedMw, caseData.totalLoadMw) }}</td>

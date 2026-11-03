@@ -6,12 +6,14 @@ JSON has no infinity, so unlimited capacities are sent as null. Attributes start
 with '_' so pywebview does not try to expose them to JavaScript.
 """
 
+import base64
 import json
 import math
 import threading
 import time
 from importlib.metadata import version
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import webview
@@ -97,6 +99,34 @@ class Api:
                 json.dumps(layout), encoding="utf-8"
             )
 
+    def save_export(self, kind: str, content: str) -> bool:
+        if kind not in ("png", "csv") or not isinstance(content, str):
+            raise ValueError("export must be PNG or CSV text")
+        if len(content) > 32 * 1024 * 1024:
+            raise ValueError("export exceeds 32 MB")
+        if kind == "png":
+            data = base64.b64decode(content, validate=True)
+            if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise ValueError("invalid PNG image")
+        else:
+            data = content.encode("utf-8-sig")
+        paths = webview.windows[0].create_file_dialog(
+            webview.FileDialog.SAVE,
+            save_filename=f"gridbalance.{kind}",
+            file_types=(f"{kind.upper()} (*.{kind})",),
+        )
+        if not paths:
+            return False
+        target = Path(paths[0])
+        if target.suffix.lower() != f".{kind}":
+            raise ValueError(f"file extension must be .{kind}")
+        # Stage on the same filesystem so failed writes preserve existing files.
+        with TemporaryDirectory(prefix=".gridbalance-", dir=target.parent) as directory:
+            staging = Path(directory) / target.name
+            staging.write_bytes(data)
+            staging.replace(target)
+        return True
+
     def _load(self, path: Path) -> dict[str, Any]:
         with self._lock:
             reinforcer = Reinforcer(load_grid(path))
@@ -173,20 +203,28 @@ def case_to_json(
 
 
 def design_to_json(grid: Grid, design: Design, elapsed_ms: float) -> dict[str, Any]:
-    return {
-        "added": list(design.added),
-        "bridgeBranches": find_bridges(grid, design.branches),
-        "cost": design.cost,
-        "bridges": design.bridges,
-        "suppliedMw": design.supplied_mw,
-        "steps": [
+    active = list(design.tree)
+    remaining = set(active)
+    steps = []
+    for step in design.steps:
+        active.append(step.branch)
+        bridges = set(find_bridges(grid, active))
+        steps.append(
             {
                 "branch": step.branch,
                 "cost": step.cost,
                 "bridges": step.bridges,
                 "suppliedMw": step.supplied_mw,
+                "removedBridges": sorted(remaining - bridges),
             }
-            for step in design.steps
-        ],
+        )
+        remaining = bridges
+    return {
+        "added": list(design.added),
+        "bridgeBranches": sorted(remaining),
+        "cost": design.cost,
+        "bridges": design.bridges,
+        "suppliedMw": design.supplied_mw,
+        "steps": steps,
         "elapsedMs": elapsed_ms,
     }

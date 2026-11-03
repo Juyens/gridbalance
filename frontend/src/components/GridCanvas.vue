@@ -2,9 +2,12 @@
 import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { BranchStatus, CaseData, DesignData, Position, Selection } from '../types'
+import type { BranchStatus, CaseData, DesignData, Position, Selection, Weights } from '../types'
 import { t } from '../i18n'
 import { formatNumber } from '../format'
+import { findBus } from '../replay'
+import { resultsCsv } from '../export'
+import { errorMessage, getApi } from '../api'
 
 cytoscape.use(fcose)
 
@@ -14,15 +17,24 @@ const props = defineProps<{
   showUnused: boolean
   showBridges: boolean
   darkMode: boolean
+  fullDesign: DesignData | null
+  weights: Weights
+  busy: boolean
+  selection: Selection
 }>()
 
 const emit = defineEmits<{
   layoutComputed: [positions: Position[]]
   select: [selection: Selection]
+  error: [message: string]
 }>()
 
 const container = ref<HTMLDivElement>()
 const computingLayout = ref(false)
+const searchTerm = ref('')
+const searchFailed = ref(false)
+const exporting = ref(false)
+const exportSaved = ref(false)
 let resizeObserver: ResizeObserver | null = null
 
 // Plain variable, not ref(): Vue must not wrap Cytoscape's internals in proxies.
@@ -52,6 +64,7 @@ function graphStyle(): StylesheetJson {
     },
     { selector: 'edge.hidden', style: { display: 'none' } },
     { selector: ':selected', style: { 'border-width': 2, 'border-color': color('selected') } },
+    { selector: 'node:selected', style: { width: 14, height: 14 } },
     {
       selector: 'edge:selected',
       style: { width: 5, 'line-color': color('selected'), 'z-index': 4 },
@@ -61,6 +74,51 @@ function graphStyle(): StylesheetJson {
 
 function fitView() {
   cy?.fit(undefined, 32)
+}
+
+function searchBus() {
+  if (!cy || !props.caseData) return
+  const bus = findBus(props.caseData, searchTerm.value)
+  searchFailed.value = !bus
+  if (!bus) return
+  const node = cy.getElementById(`b${bus.index}`)
+  cy.zoom(Math.max(cy.zoom(), 1.2))
+  cy.center(node)
+  emit('select', { kind: 'bus', index: bus.index })
+}
+
+function applySelection() {
+  if (!cy) return
+  cy.$(':selected').unselect()
+  if (props.selection) {
+    const prefix = props.selection.kind === 'bus' ? 'b' : 'e'
+    cy.getElementById(`${prefix}${props.selection.index}`).select()
+  }
+}
+
+async function saveExport(kind: 'png' | 'csv') {
+  if (!cy || !props.caseData || !props.fullDesign) return
+  exporting.value = true
+  exportSaved.value = false
+  try {
+    const content =
+      kind === 'png'
+        ? cy
+            .png({
+              full: true,
+              scale: 2,
+              maxWidth: 4096,
+              maxHeight: 4096,
+              bg: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+            })
+            .replace(/^data:image\/png;base64,/, '')
+        : resultsCsv(props.caseData, props.fullDesign, props.weights)
+    exportSaved.value = await (await getApi()).save_export(kind, content)
+  } catch (reason) {
+    emit('error', errorMessage(reason))
+  } finally {
+    exporting.value = false
+  }
 }
 
 const FCOSE_OPTIONS = {
@@ -148,6 +206,7 @@ function applyDesign() {
       edge.classes(classes)
     })
   })
+  applySelection()
 }
 
 onMounted(() => {
@@ -184,11 +243,18 @@ onUnmounted(() => {
 watch(
   () => props.caseData,
   (data) => {
+    searchTerm.value = ''
+    searchFailed.value = false
+    exportSaved.value = false
     emit('select', null)
     if (data) renderCase(data)
   },
 )
 watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
+watch(() => props.selection, applySelection)
+watch(searchTerm, () => {
+  searchFailed.value = false
+})
 watch(
   () => props.darkMode,
   () => {
@@ -207,10 +273,49 @@ watch(
         })
       }}</span>
       <span v-else>{{ t('network') }}</span>
-      <button type="button" :disabled="!caseData || computingLayout" @click="fitView">
-        {{ t('fitView') }}
-      </button>
+      <div class="canvas-actions">
+        <button type="button" :disabled="!caseData || computingLayout" @click="fitView">
+          {{ t('fitView') }}
+        </button>
+        <button
+          type="button"
+          :disabled="!fullDesign || busy || computingLayout || exporting"
+          :title="t('pngDescription')"
+          @click="saveExport('png')"
+        >
+          PNG
+        </button>
+        <button
+          type="button"
+          :disabled="!fullDesign || busy || computingLayout || exporting"
+          :title="t('csvDescription')"
+          @click="saveExport('csv')"
+        >
+          CSV
+        </button>
+      </div>
     </div>
+    <form class="bus-search" @submit.prevent="searchBus">
+      <label for="bus-search" class="sr-only">{{ t('busId') }}</label>
+      <input
+        id="bus-search"
+        v-model="searchTerm"
+        type="search"
+        inputmode="numeric"
+        :placeholder="t('busId')"
+        :aria-invalid="searchFailed"
+        :aria-describedby="searchFailed ? 'bus-search-error' : undefined"
+        :disabled="!caseData || busy || computingLayout"
+      />
+      <button type="submit" :disabled="!caseData || busy || computingLayout">
+        {{ t('search') }}
+      </button>
+      <span v-if="searchFailed" id="bus-search-error" role="status">{{
+        t('busNotFound', { id: searchTerm })
+      }}</span>
+      <span v-else-if="exporting" role="status">{{ t('exporting') }}</span>
+      <span v-else-if="exportSaved" role="status">{{ t('exportSaved') }}</span>
+    </form>
     <div ref="container" class="cytoscape" role="img" :aria-label="t('graphDescription')"></div>
 
     <div v-if="computingLayout" class="overlay" role="status">
@@ -249,14 +354,50 @@ watch(
   padding: 12px 16px;
   color: var(--muted);
   font-size: 12px;
+  flex-wrap: wrap;
 }
-.canvas-bar button {
+.canvas-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+button {
   min-height: 32px;
   padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
   color: var(--text);
+}
+.bus-search {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+.bus-search input {
+  min-width: 0;
+  width: 144px;
+  max-width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 4px 8px;
+}
+.bus-search input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.bus-search input[aria-invalid='true'] {
+  border-color: var(--error-text);
+}
+.bus-search span {
+  font-size: 12px;
+  color: var(--muted);
 }
 .cytoscape {
   position: relative;

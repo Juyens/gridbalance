@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { getApi } from './api'
 import CaseBar from './components/CaseBar.vue'
 import GridCanvas from './components/GridCanvas.vue'
 import MetricsPanel from './components/MetricsPanel.vue'
 import SelectionDetails from './components/SelectionDetails.vue'
 import WeightPanel from './components/WeightPanel.vue'
+import ReplayPanel from './components/ReplayPanel.vue'
+import { designAtStep } from './replay'
 import { useGridDesign } from './composables/useGridDesign'
 import { locale, t, type Locale, type MessageKey } from './i18n'
 import type { Selection } from './types'
@@ -27,6 +29,25 @@ const {
 const showUnused = ref(false)
 const showBridges = ref(false)
 const selection = ref<Selection>(null)
+const replayStep = ref<number | null>(null)
+const displayedDesign = computed(() =>
+  caseData.value && design.value
+    ? designAtStep(caseData.value, design.value, replayStep.value ?? design.value.steps.length)
+    : null,
+)
+
+watch(
+  [caseData, design, weights],
+  () => {
+    replayStep.value = null
+    selection.value = null
+  },
+  { flush: 'sync' },
+)
+watch(replayStep, (step) => {
+  const branch = step === null ? undefined : design.value?.steps[step - 1]?.branch
+  selection.value = branch === undefined ? null : { kind: 'branch', index: branch }
+})
 const darkMode = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
 const themeBusy = ref(true)
 const themeError = ref<MessageKey | null>(null)
@@ -128,6 +149,13 @@ onMounted(start)
     <main class="layout">
       <aside class="sidebar controls" :aria-label="t('controls')">
         <WeightPanel v-model="weights" />
+        <ReplayPanel
+          v-if="caseData && design"
+          v-model="replayStep"
+          :case-data="caseData"
+          :design="design"
+          :disabled="loadingCase || designing"
+        />
         <section class="layers">
           <h2>{{ t('layers') }}</h2>
           <label><input v-model="showBridges" type="checkbox" /> {{ t('bridges') }}</label>
@@ -137,17 +165,27 @@ onMounted(start)
 
       <GridCanvas
         :case-data="caseData"
-        :design="design"
+        :design="displayedDesign"
+        :full-design="design"
+        :weights="weights"
+        :busy="loadingCase || designing"
+        :selection="selection"
         :show-unused="showUnused"
         :show-bridges="showBridges"
         :dark-mode="darkMode"
         @layout-computed="saveLayout"
         @select="selection = $event"
+        @error="error = $event"
       />
 
       <aside v-if="caseData" class="sidebar results" :aria-label="t('results')">
-        <MetricsPanel :case-data="caseData" :design="design" :designing="designing" />
-        <SelectionDetails :case-data="caseData" :design="design" :selection="selection" />
+        <MetricsPanel
+          :case-data="caseData"
+          :design="displayedDesign"
+          :designing="designing"
+          :step="replayStep"
+        />
+        <SelectionDetails :case-data="caseData" :design="displayedDesign" :selection="selection" />
       </aside>
     </main>
   </div>

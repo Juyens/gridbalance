@@ -46,6 +46,7 @@ export interface CaseData {
 
 export interface DesignStep extends Metrics {
   branch: number
+  removedBridges: number[]
 }
 
 export interface DesignData extends Metrics {
