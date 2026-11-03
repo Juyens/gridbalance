@@ -74,3 +74,35 @@ def test_layout_with_wrong_size_is_rejected(loaded):
 
     with pytest.raises(ValueError, match="one position per bus"):
         api.save_layout([[0.0, 0.0]])
+
+
+def test_theme_defaults_to_system(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    assert Api(tmp_path).get_theme() is None
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_theme_survives_new_api_instance(tmp_path, monkeypatch, theme):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    Api(tmp_path).set_theme(theme)
+
+    assert Api(tmp_path).get_theme() == theme
+
+
+@pytest.mark.parametrize("theme", ["system", "", None, {}])
+def test_invalid_theme_is_rejected(tmp_path, monkeypatch, theme):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    with pytest.raises(ValueError, match="light or dark"):
+        Api(tmp_path).set_theme(theme)
+    assert not (tmp_path / ".gridbalance").exists()
+
+
+def test_invalid_saved_theme_falls_back_to_system(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    settings = tmp_path / ".gridbalance"
+    settings.mkdir()
+    (settings / "theme").write_text("unknown", encoding="utf-8")
+
+    assert Api(tmp_path).get_theme() is None

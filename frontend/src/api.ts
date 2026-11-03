@@ -4,6 +4,8 @@ import type { CaseData, DesignData, Position, Weights } from './types'
 
 export interface BackendApi {
   ping(): Promise<string>
+  get_theme(): Promise<'light' | 'dark' | null>
+  set_theme(theme: 'light' | 'dark'): Promise<void>
   list_cases(): Promise<string[]>
   load_case(fileName: string): Promise<CaseData>
   open_case(): Promise<CaseData | null>

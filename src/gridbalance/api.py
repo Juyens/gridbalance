@@ -26,6 +26,7 @@ LAYOUT_SUFFIX = ".layout.json"
 class Api:
     def __init__(self, cases_dir: Path) -> None:
         self._cases_dir = cases_dir
+        self._theme_path = Path.home() / ".gridbalance" / "theme"
         self._case_path: Path | None = None
         self._reinforcer: Reinforcer | None = None
         # One computation at a time: fast slider moves send calls in parallel.
@@ -33,6 +34,19 @@ class Api:
 
     def ping(self) -> str:
         return f"Backend ready (gridbalance {version('gridbalance')})"
+
+    def get_theme(self) -> str | None:
+        try:
+            theme = self._theme_path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return None
+        return theme if theme in ("light", "dark") else None
+
+    def set_theme(self, theme: str) -> None:
+        if theme not in ("light", "dark"):
+            raise ValueError("theme must be light or dark")
+        self._theme_path.parent.mkdir(parents=True, exist_ok=True)
+        self._theme_path.write_text(theme, encoding="utf-8")
 
     def list_cases(self) -> list[str]:
         """MATPOWER case files bundled in the cases folder."""

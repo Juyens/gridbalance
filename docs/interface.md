@@ -27,6 +27,11 @@ interface and system fonts. No added dependencies or decorative motion.
 does not parse OKLCH. System typography is intentional for an offline desktop
 tool. Green denotes added connections; red is reserved for bridges and errors.
 
+The Dark mode toggle switches both interface and graph colours without resetting
+the view or selection. It initially follows the system preference and saves an
+explicit choice in `~/.gridbalance/theme`, independent of pywebview's temporary
+browser origin. Saving failures are reported while the chosen theme stays active.
+
 The icon is an original vector network with a reinforced diagonal and central
 junction, using the same quiet green identity. `frontend/public/favicon.svg`
 is the editable source; `gridbalance.png` is 256px; `gridbalance.ico` contains
@@ -34,7 +39,9 @@ is the editable source; `gridbalance.png` is 256px; `gridbalance.ico` contains
 
 ## Verification
 
-Build/typecheck, ESLint, Ruff and all 55 Python tests passed. Desktop inspection
+Build/typecheck, ESLint, Ruff and all 63 Python tests passed. Desktop inspection
 confirmed the icon, Economic preset recalculation, layer toggles and comparison.
+Both colour themes and live graph recolouring were checked in the Windows app;
+eight theme tests cover persistence, defaults and invalid preferences.
 The complete Prettier check reports seven unchanged source files; edited files
 were formatted. Exact mobile widths and other operating systems were not tested.

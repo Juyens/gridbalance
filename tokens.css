@@ -1,5 +1,6 @@
 /* GridBalance: shared interface and network colours. */
 :root {
+  color-scheme: light;
   --font-ui: "Segoe UI", system-ui, sans-serif;
   --text: oklch(27% 0.025 250);
   --muted: oklch(47% 0.02 250);
@@ -20,4 +21,26 @@
   --graph-kv110: #427a9b;
   --graph-low: #7c8995;
   --graph-selected: #153c55;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --text: oklch(92% 0.01 250);
+  --muted: oklch(73% 0.015 250);
+  --border: oklch(35% 0.015 250);
+  --surface: oklch(23% 0.015 250);
+  --background: oklch(19% 0.015 250);
+  --accent: oklch(78% 0.09 175);
+  --accent-soft: oklch(30% 0.035 175);
+  --error-surface: oklch(29% 0.055 25);
+  --error-text: oklch(83% 0.09 25);
+  --graph-tree: #8a9aa8;
+  --graph-added: #86c8ad;
+  --graph-bridge: #f18c7f;
+  --graph-unused: #485662;
+  --graph-kv400: #b7a4dc;
+  --graph-kv220: #d5ae72;
+  --graph-kv110: #85b9d8;
+  --graph-low: #8a9aa8;
+  --graph-selected: #f4f8f6;
 }

@@ -11,6 +11,7 @@ const props = defineProps<{
   design: DesignData | null
   showUnused: boolean
   showBridges: boolean
+  darkMode: boolean
 }>()
 
 const emit = defineEmits<{
@@ -186,6 +187,12 @@ watch(
   },
 )
 watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
+watch(
+  () => props.darkMode,
+  () => {
+    cy?.style(graphStyle())
+  },
+)
 </script>
 
 <template>

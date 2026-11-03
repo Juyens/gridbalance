@@ -3,11 +3,14 @@ defineProps<{
   cases: string[]
   current: string | null
   loading: boolean
+  darkMode: boolean
+  themeBusy: boolean
 }>()
 
 const emit = defineEmits<{
   load: [fileName: string]
   open: []
+  toggleTheme: []
 }>()
 
 function onChange(event: Event) {
@@ -32,6 +35,15 @@ function onChange(event: Event) {
       </select>
     </label>
     <button type="button" :disabled="loading" @click="emit('open')">Open .m file</button>
+    <button
+      class="theme-toggle"
+      type="button"
+      :aria-pressed="darkMode"
+      :disabled="themeBusy"
+      @click="emit('toggleTheme')"
+    >
+      Dark mode
+    </button>
     <span v-if="loading" class="status" role="status">Loading…</span>
   </header>
 </template>
@@ -82,6 +94,12 @@ button {
 
 .status {
   color: var(--muted);
+}
+
+.theme-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 @media (max-width: 480px) {

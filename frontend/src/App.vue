@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { getApi } from './api'
 import CaseBar from './components/CaseBar.vue'
 import GridCanvas from './components/GridCanvas.vue'
 import MetricsPanel from './components/MetricsPanel.vue'
@@ -25,6 +26,41 @@ const {
 const showUnused = ref(false)
 const showBridges = ref(false)
 const selection = ref<Selection>(null)
+const darkMode = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
+const themeBusy = ref(true)
+const themeError = ref<string | null>(null)
+
+watch(
+  darkMode,
+  (dark) => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  },
+  { immediate: true, flush: 'sync' },
+)
+
+onMounted(async () => {
+  try {
+    const theme = await (await getApi()).get_theme()
+    if (theme) darkMode.value = theme === 'dark'
+  } catch {
+    themeError.value = 'Could not load the saved theme. Using your system preference.'
+  } finally {
+    themeBusy.value = false
+  }
+})
+
+async function toggleTheme() {
+  darkMode.value = !darkMode.value
+  themeBusy.value = true
+  themeError.value = null
+  try {
+    await (await getApi()).set_theme(darkMode.value ? 'dark' : 'light')
+  } catch {
+    themeError.value = 'Theme changed, but the preference could not be saved.'
+  } finally {
+    themeBusy.value = false
+  }
+}
 
 onMounted(start)
 </script>
@@ -35,11 +71,14 @@ onMounted(start)
       :cases="cases"
       :current="caseData?.name ?? null"
       :loading="loadingCase"
+      :dark-mode="darkMode"
+      :theme-busy="themeBusy"
       @load="loadCase"
       @open="openCase"
+      @toggle-theme="toggleTheme"
     />
 
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="error || themeError" class="error" role="alert">{{ error || themeError }}</p>
 
     <main class="layout">
       <aside class="sidebar controls" aria-label="Design controls">
@@ -56,6 +95,7 @@ onMounted(start)
         :design="design"
         :show-unused="showUnused"
         :show-bridges="showBridges"
+        :dark-mode="darkMode"
         @layout-computed="saveLayout"
         @select="selection = $event"
       />
