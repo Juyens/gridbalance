@@ -1,0 +1,23 @@
+/* GridBalance: shared interface and network colours. */
+:root {
+  --font-ui: "Segoe UI", system-ui, sans-serif;
+  --text: oklch(27% 0.025 250);
+  --muted: oklch(47% 0.02 250);
+  --border: oklch(89% 0.009 250);
+  --surface: oklch(100% 0 0);
+  --background: oklch(97% 0.005 250);
+  --accent: oklch(43% 0.085 175);
+  --accent-soft: oklch(95% 0.025 175);
+  --error-surface: oklch(96% 0.025 25);
+  --error-text: oklch(40% 0.15 25);
+  /* Cytoscape's colour parser requires sRGB values. */
+  --graph-tree: #7c8995;
+  --graph-added: #24745d;
+  --graph-bridge: #bc493c;
+  --graph-unused: #d5dce2;
+  --graph-kv400: #655184;
+  --graph-kv220: #956d31;
+  --graph-kv110: #427a9b;
+  --graph-low: #7c8995;
+  --graph-selected: #153c55;
+}

@@ -17,9 +17,9 @@ function onChange(event: Event) {
 
 <template>
   <header class="case-bar">
-    <h1>GridBalance</h1>
+    <h1><img src="/favicon.svg" width="28" height="28" alt="" />GridBalance</h1>
     <label>
-      Case
+      <span class="sr-only">Network case</span>
       <select :disabled="loading" @change="onChange">
         <option
           v-for="name in cases"
@@ -31,8 +31,8 @@ function onChange(event: Event) {
         </option>
       </select>
     </label>
-    <button type="button" :disabled="loading" @click="emit('open')">Open .m file...</button>
-    <span v-if="loading" class="status">Loading case...</span>
+    <button type="button" :disabled="loading" @click="emit('open')">Open .m file</button>
+    <span v-if="loading" class="status" role="status">Loading…</span>
   </header>
 </template>
 
@@ -40,8 +40,10 @@ function onChange(event: Event) {
 .case-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 20px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -49,6 +51,11 @@ function onChange(event: Event) {
 h1 {
   margin: 0 auto 0 0;
   font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 label {
@@ -59,7 +66,9 @@ label {
 
 select,
 button {
-  padding: 5px 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -73,5 +82,18 @@ button {
 
 .status {
   color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  h1 {
+    flex-basis: 100%;
+  }
+  label {
+    flex: 1;
+    min-width: 0;
+  }
+  select {
+    width: 100%;
+  }
 }
 </style>

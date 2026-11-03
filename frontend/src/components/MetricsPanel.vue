@@ -30,11 +30,10 @@ const rows = computed(() => {
 </script>
 
 <template>
-  <section class="metrics-panel" :class="{ stale: designing }">
+  <section class="metrics-panel" :class="{ stale: designing }" :aria-busy="designing">
     <h2>
-      Design
-      <small v-if="designing">updating...</small>
-      <small v-else-if="design">{{ formatNumber(design.elapsedMs) }} ms</small>
+      Design results
+      <small v-if="designing" role="status">Updating…</small>
     </h2>
 
     <div v-if="design" class="cards">
@@ -61,28 +60,40 @@ const rows = computed(() => {
         <small>MST + {{ formatNumber(design.added.length) }} added</small>
       </div>
     </div>
-    <p v-else class="muted">Computing the first design...</p>
+    <p v-else class="muted" role="status">Computing design…</p>
 
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Cost</th>
-          <th>Bridges</th>
-          <th>Supply</th>
-          <th>Lines</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.name" :class="{ highlight: row.name === 'Design' }">
-          <th>{{ row.name }}</th>
-          <td>{{ formatNumber(row.metrics.cost) }}</td>
-          <td>{{ formatNumber(row.metrics.bridges) }}</td>
-          <td>{{ formatPercent(row.metrics.suppliedMw, caseData.totalLoadMw) }}</td>
-          <td>{{ formatNumber(row.lines) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <details class="comparison">
+      <summary>Compare networks</summary>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">
+            Network comparison. Cost in
+            {{
+              unitSymbol(caseData.costUnit)
+            }}; supply as percentage of demand.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Network</span></th>
+              <th scope="col">Cost</th>
+              <th scope="col">Bridges</th>
+              <th scope="col">Supply</th>
+              <th scope="col">Lines</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.name" :class="{ highlight: row.name === 'Design' }">
+              <th scope="row">{{ row.name }}</th>
+              <td>{{ formatNumber(row.metrics.cost) }}</td>
+              <td>{{ formatNumber(row.metrics.bridges) }}</td>
+              <td>{{ formatPercent(row.metrics.suppliedMw, caseData.totalLoadMw) }}</td>
+              <td>{{ formatNumber(row.lines) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p v-if="design" class="timing">Calculated in {{ formatNumber(design.elapsedMs) }} ms</p>
+    </details>
   </section>
 </template>
 
@@ -92,7 +103,7 @@ h2 {
   align-items: baseline;
   justify-content: space-between;
   margin: 0 0 12px;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 h2 small,
@@ -106,18 +117,16 @@ h2 small,
 }
 
 .cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .card span,
@@ -127,8 +136,27 @@ h2 small,
 }
 
 .card strong {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
+}
+
+.card small {
+  grid-column: 1 / -1;
+}
+.comparison summary {
+  font-size: 12px;
+  min-height: 32px;
+}
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.timing {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 table {
@@ -140,7 +168,7 @@ table {
 
 th,
 td {
-  padding: 4px 6px;
+  padding: 8px 4px;
   border-bottom: 1px solid var(--border);
   text-align: right;
 }

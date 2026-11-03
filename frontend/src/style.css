@@ -1,16 +1,70 @@
-:root {
-  --text: #1f2328;
-  --muted: #59636e;
-  --border: #d0d7de;
-  --surface: #ffffff;
-  --background: #f6f8fa;
-  --accent: #0969da;
-  --accent-soft: #ddf4ff;
+/* Hallmark · macrostructure: network workbench · tone: technical · anchor hue: green
+ * pre-emit critique: P5 H4 E4 S5 R5 V4 */
+@import '../../tokens.css';
 
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+:root {
+  font-family: var(--font-ui);
   font-size: 14px;
   color: var(--text);
   background: var(--background);
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  accent-color: var(--accent);
+}
+button,
+select,
+summary {
+  white-space: nowrap;
+}
+button:not(:disabled),
+summary,
+select:not(:disabled) {
+  cursor: pointer;
+}
+button:not(:disabled):hover,
+select:not(:disabled):hover {
+  background: var(--accent-soft);
+}
+button:not(:disabled):active {
+  background: var(--border);
+}
+button:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+summary:hover {
+  color: var(--accent);
+}
+summary:active {
+  color: var(--text);
+}
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 * {

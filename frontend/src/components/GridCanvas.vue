@@ -20,27 +20,45 @@ const emit = defineEmits<{
 
 const container = ref<HTMLDivElement>()
 const computingLayout = ref(false)
+let resizeObserver: ResizeObserver | null = null
 
 // Plain variable, not ref(): Vue must not wrap Cytoscape's internals in proxies.
 let cy: Core | null = null
 
-const STYLE: StylesheetJson = [
-  {
-    selector: 'node',
-    style: { width: 5, height: 5, 'background-color': '#8c959f', 'border-width': 0 },
-  },
-  { selector: 'node.kv400', style: { 'background-color': '#cf222e' } },
-  { selector: 'node.kv220', style: { 'background-color': '#bc4c00' } },
-  { selector: 'node.kv110', style: { 'background-color': '#0969da' } },
-  { selector: 'node.generator', style: { width: 10, height: 10, shape: 'diamond' } },
-  { selector: 'edge', style: { 'curve-style': 'haystack', width: 1, 'line-color': '#d0d7de' } },
-  { selector: 'edge.tree', style: { width: 1.4, 'line-color': '#57606a' } },
-  { selector: 'edge.added', style: { width: 2.6, 'line-color': '#1a7f37', 'z-index': 2 } },
-  { selector: 'edge.bridge', style: { width: 2.6, 'line-color': '#cf222e', 'z-index': 3 } },
-  { selector: 'edge.hidden', style: { display: 'none' } },
-  { selector: ':selected', style: { 'border-width': 2, 'border-color': '#1f2328' } },
-  { selector: 'edge:selected', style: { width: 5, 'line-color': '#8250df', 'z-index': 4 } },
-]
+function graphStyle(): StylesheetJson {
+  const tokens = getComputedStyle(document.documentElement)
+  const color = (name: string) => tokens.getPropertyValue(`--graph-${name}`).trim()
+  return [
+    {
+      selector: 'node',
+      style: { width: 5, height: 5, 'background-color': color('low'), 'border-width': 0 },
+    },
+    { selector: 'node.kv400', style: { 'background-color': color('kv400') } },
+    { selector: 'node.kv220', style: { 'background-color': color('kv220') } },
+    { selector: 'node.kv110', style: { 'background-color': color('kv110') } },
+    { selector: 'node.generator', style: { width: 10, height: 10, shape: 'diamond' } },
+    {
+      selector: 'edge',
+      style: { 'curve-style': 'haystack', width: 1, 'line-color': color('unused') },
+    },
+    { selector: 'edge.tree', style: { width: 1.4, 'line-color': color('tree') } },
+    { selector: 'edge.added', style: { width: 2.6, 'line-color': color('added'), 'z-index': 2 } },
+    {
+      selector: 'edge.bridge',
+      style: { width: 2.6, 'line-color': color('bridge'), 'line-style': 'dashed', 'z-index': 3 },
+    },
+    { selector: 'edge.hidden', style: { display: 'none' } },
+    { selector: ':selected', style: { 'border-width': 2, 'border-color': color('selected') } },
+    {
+      selector: 'edge:selected',
+      style: { width: 5, 'line-color': color('selected'), 'z-index': 4 },
+    },
+  ]
+}
+
+function fitView() {
+  cy?.fit(undefined, 32)
+}
 
 const FCOSE_OPTIONS = {
   name: 'fcose',
@@ -132,12 +150,16 @@ function applyDesign() {
 onMounted(() => {
   cy = cytoscape({
     container: container.value,
-    style: STYLE,
+    style: graphStyle(),
     minZoom: 0.02,
     maxZoom: 6,
     textureOnViewport: true, // pan and zoom move a snapshot instead of redrawing
     boxSelectionEnabled: false,
   })
+  resizeObserver = new ResizeObserver(() => {
+    cy?.resize()
+  })
+  resizeObserver.observe(container.value!)
   cy.on('tap', 'node', (event) =>
     emit('select', { kind: 'bus', index: event.target.data('index') }),
   )
@@ -151,6 +173,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  resizeObserver?.disconnect()
   cy?.destroy()
   cy = null
 })
@@ -166,40 +189,76 @@ watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
 </script>
 
 <template>
-  <div class="grid-canvas">
-    <div ref="container" class="cytoscape"></div>
-
-    <div v-if="computingLayout" class="overlay">
-      Computing layout for {{ caseData?.buses.length }} buses. This happens only the first time.
+  <section class="grid-canvas" aria-label="Power network">
+    <div class="canvas-bar">
+      <span v-if="caseData"
+        >{{ caseData.buses.length.toLocaleString('en-US') }} buses <span class="separator">/</span>
+        {{ caseData.branches.length.toLocaleString('en-US') }} lines</span
+      >
+      <span v-else>Network</span>
+      <button type="button" :disabled="!caseData || computingLayout" @click="fitView">
+        Fit view
+      </button>
     </div>
+    <div
+      ref="container"
+      class="cytoscape"
+      role="img"
+      aria-label="Interactive power network. Scroll to zoom, drag to pan, select a bus or line for details."
+    ></div>
+
+    <div v-if="computingLayout" class="overlay">Arranging {{ caseData?.buses.length }} buses…</div>
 
     <ul class="legend">
       <li><span class="line tree"></span>MST</li>
       <li><span class="line added"></span>Added</li>
-      <li><span class="line bridge"></span>Bridge</li>
-      <li><span class="line unused"></span>Unused</li>
+      <li v-if="showBridges"><span class="line bridge"></span>Bridge</li>
+      <li v-if="showUnused"><span class="line unused"></span>Unused</li>
       <li><span class="dot kv400"></span>400 kV</li>
       <li><span class="dot kv220"></span>220 kV</li>
       <li><span class="dot kv110"></span>110 kV</li>
       <li><span class="diamond"></span>Generation</li>
     </ul>
-  </div>
+  </section>
 </template>
 
 <style scoped>
 .grid-canvas {
   position: relative;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
   background: var(--surface);
   overflow: hidden;
 }
 
+.canvas-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.canvas-bar button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+.separator {
+  margin: 0 6px;
+  color: var(--graph-tree);
+}
+
 .cytoscape {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1;
+  min-height: 200px;
 }
 
 .overlay {
@@ -208,25 +267,21 @@ watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(255 255 255 / 85%);
+  background: var(--surface);
   text-align: center;
 }
 
 .legend {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  max-width: calc(100% - 20px);
+  align-items: center;
+  gap: 8px 16px;
   margin: 0;
-  padding: 6px 10px;
+  padding: 12px 16px;
   list-style: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: rgb(255 255 255 / 90%);
-  font-size: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .legend li {
@@ -242,19 +297,19 @@ watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
 }
 
 .line.tree {
-  background: #57606a;
+  background: var(--graph-tree);
 }
 
 .line.added {
-  background: #1a7f37;
+  background: var(--graph-added);
 }
 
 .line.bridge {
-  background: #cf222e;
+  border-top: 2px dashed var(--graph-bridge);
 }
 
 .line.unused {
-  background: #d0d7de;
+  background: var(--graph-unused);
 }
 
 .dot {
@@ -265,22 +320,29 @@ watch(() => [props.design, props.showUnused, props.showBridges], applyDesign)
 }
 
 .dot.kv400 {
-  background: #cf222e;
+  background: var(--graph-kv400);
 }
 
 .dot.kv220 {
-  background: #bc4c00;
+  background: var(--graph-kv220);
 }
 
 .dot.kv110 {
-  background: #0969da;
+  background: var(--graph-kv110);
 }
 
 .diamond {
   display: inline-block;
   width: 8px;
   height: 8px;
-  background: #57606a;
+  background: var(--graph-tree);
   transform: rotate(45deg);
+}
+
+@media (max-width: 760px) {
+  .grid-canvas {
+    height: 65vh;
+    min-height: 400px;
+  }
 }
 </style>

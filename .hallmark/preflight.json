@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-03",
+  "framework": "Vue 3 / TypeScript / Vite / Cytoscape / pywebview",
+  "fonts": "System UI, kept for offline Windows desktop use",
+  "palette": "Light surfaces, shared green accent and semantic graph colours",
+  "motion": "None",
+  "source_files": ["frontend/src/style.css", "frontend/package.json"],
+  "scope": "Existing single-screen desktop app; in-place component edits"
+}

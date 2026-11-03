@@ -35,4 +35,7 @@ def main() -> None:
     webview.create_window(
         "GridBalance", url, js_api=Api(CASES_DIR), width=1280, height=800
     )
-    webview.start(debug=args.dev)
+    webview.start(
+        debug=args.dev,
+        icon=str(REPO_ROOT / "frontend" / "public" / "gridbalance.ico"),
+    )

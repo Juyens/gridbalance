@@ -22,8 +22,8 @@ const {
   start,
 } = useGridDesign()
 
-const showUnused = ref(true)
-const showBridges = ref(true)
+const showUnused = ref(false)
+const showBridges = ref(false)
 const selection = ref<Selection>(null)
 
 onMounted(start)
@@ -42,12 +42,12 @@ onMounted(start)
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
     <main class="layout">
-      <aside class="sidebar">
+      <aside class="sidebar controls" aria-label="Design controls">
         <WeightPanel v-model="weights" />
         <section class="layers">
           <h2>Layers</h2>
-          <label><input v-model="showBridges" type="checkbox" /> Highlight bridges</label>
-          <label><input v-model="showUnused" type="checkbox" /> Show unused lines</label>
+          <label><input v-model="showBridges" type="checkbox" /> Bridges</label>
+          <label><input v-model="showUnused" type="checkbox" /> Unused lines</label>
         </section>
       </aside>
 
@@ -60,7 +60,7 @@ onMounted(start)
         @select="selection = $event"
       />
 
-      <aside v-if="caseData" class="sidebar">
+      <aside v-if="caseData" class="sidebar results" aria-label="Design results">
         <MetricsPanel :case-data="caseData" :design="design" :designing="designing" />
         <SelectionDetails :case-data="caseData" :design="design" :selection="selection" />
       </aside>
@@ -78,34 +78,83 @@ onMounted(start)
 .error {
   margin: 0;
   padding: 8px 16px;
-  background: #ffebe9;
-  color: #82071e;
+  background: var(--error-surface);
+  color: var(--error-text);
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 320px;
-  gap: 12px;
+  grid-template-columns: 224px minmax(0, 1fr) 304px;
   flex: 1;
   min-height: 0;
-  padding: 12px;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  padding: 24px 20px;
+  background: var(--surface);
+}
+
+.controls {
+  border-right: 1px solid var(--border);
+}
+
+.results {
+  border-left: 1px solid var(--border);
 }
 
 .layers h2 {
-  margin: 0 0 8px;
-  font-size: 15px;
+  margin: 0 0 12px;
+  font-size: 13px;
 }
 
 .layers label {
-  display: block;
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--muted);
+}
+
+@media (max-width: 1050px) and (min-width: 761px) {
+  .layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 260px;
+  }
+  .results {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 760px) {
+  .app {
+    height: auto;
+    min-height: 100%;
+  }
+  .layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar {
+    overflow: visible;
+    padding: 20px;
+  }
+  .controls {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .results {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 </style>

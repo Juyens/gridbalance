@@ -23,7 +23,7 @@ const branchStatus = computed(() => {
   const role = props.caseData.tree.includes(index)
     ? 'MST'
     : props.design?.added.includes(index)
-      ? 'Added by the greedy'
+      ? 'Added'
       : 'Not used'
   return props.design?.bridgeBranches.includes(index) ? `${role}, bridge` : role
 })
@@ -35,7 +35,7 @@ function busId(index: number): number {
 
 <template>
   <section class="selection-details">
-    <h2>Selection</h2>
+    <h2>Element details</h2>
     <dl v-if="bus">
       <dt>Bus</dt>
       <dd>{{ bus.id }}</dd>
@@ -62,20 +62,20 @@ function busId(index: number): number {
       <dt>Status</dt>
       <dd>{{ branchStatus }}</dd>
     </dl>
-    <p v-else class="muted">Click a bus or a branch to see its data.</p>
+    <p v-else class="muted">Select a bus or line on the network.</p>
   </section>
 </template>
 
 <style scoped>
 h2 {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 dl {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 12px;
+  gap: 10px 16px;
   margin: 0;
   font-size: 13px;
 }
