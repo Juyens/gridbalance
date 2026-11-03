@@ -154,9 +154,10 @@ class Reinforcer:
         self.tree_flow = FlowNetwork(grid, self.tree)
         self.tree_flow.max_flow()
         self.full_flow = max_flow(grid)
+        self.full_bridges = len(find_bridges(grid))
 
         # Totals of adding every candidate, used to normalize the score terms.
-        self.max_bridges_removed = len(self.tree) - len(find_bridges(grid))
+        self.max_bridges_removed = len(self.tree) - self.full_bridges
         self.max_supply_gain = self.full_flow - self.tree_flow.value
         self.max_extra_cost = grid.total_cost() - self.tree_cost
 

@@ -1,7 +1,16 @@
 :root {
+  --text: #1f2328;
+  --muted: #59636e;
+  --border: #d0d7de;
+  --surface: #ffffff;
+  --background: #f6f8fa;
+  --accent: #0969da;
+  --accent-soft: #ddf4ff;
+
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color: #1f2328;
-  background: #ffffff;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--background);
 }
 
 * {

@@ -1,41 +1,71 @@
 <script setup lang="ts">
-import cytoscape from 'cytoscape'
-import fcose from 'cytoscape-fcose'
 import { onMounted, ref } from 'vue'
-import { getApi } from './api'
+import CaseBar from './components/CaseBar.vue'
+import GridCanvas from './components/GridCanvas.vue'
+import MetricsPanel from './components/MetricsPanel.vue'
+import SelectionDetails from './components/SelectionDetails.vue'
+import WeightPanel from './components/WeightPanel.vue'
+import { useGridDesign } from './composables/useGridDesign'
+import type { Selection } from './types'
 
-cytoscape.use(fcose)
+const {
+  caseData,
+  design,
+  weights,
+  cases,
+  loadingCase,
+  designing,
+  error,
+  loadCase,
+  openCase,
+  saveLayout,
+  start,
+} = useGridDesign()
 
-const status = ref('Waiting for backend...')
-const graphContainer = ref<HTMLDivElement>()
+const showUnused = ref(true)
+const showBridges = ref(true)
+const selection = ref<Selection>(null)
 
-onMounted(async () => {
-  cytoscape({
-    container: graphContainer.value,
-    elements: [
-      { data: { id: 'a' } },
-      { data: { id: 'b' } },
-      { data: { id: 'c' } },
-      { data: { id: 'ab', source: 'a', target: 'b' } },
-      { data: { id: 'bc', source: 'b', target: 'c' } },
-      { data: { id: 'ca', source: 'c', target: 'a' } },
-    ],
-    layout: { name: 'fcose' },
-  })
-
-  const api = await getApi()
-  status.value = await api.ping()
-})
+onMounted(start)
 </script>
 
 <template>
-  <main class="app">
-    <header>
-      <h1>GridBalance</h1>
-      <p>{{ status }}</p>
-    </header>
-    <div ref="graphContainer" class="graph"></div>
-  </main>
+  <div class="app">
+    <CaseBar
+      :cases="cases"
+      :current="caseData?.name ?? null"
+      :loading="loadingCase"
+      @load="loadCase"
+      @open="openCase"
+    />
+
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <WeightPanel v-model="weights" />
+        <section class="layers">
+          <h2>Layers</h2>
+          <label><input v-model="showBridges" type="checkbox" /> Highlight bridges</label>
+          <label><input v-model="showUnused" type="checkbox" /> Show unused lines</label>
+        </section>
+      </aside>
+
+      <GridCanvas
+        :case-data="caseData"
+        :design="design"
+        :show-unused="showUnused"
+        :show-bridges="showBridges"
+        @layout-computed="saveLayout"
+        @select="selection = $event"
+      />
+
+      <aside v-if="caseData" class="sidebar">
+        <MetricsPanel :case-data="caseData" :design="design" :designing="designing" />
+        <SelectionDetails :case-data="caseData" :design="design" :selection="selection" />
+      </aside>
+    </main>
+  </div>
 </template>
 
 <style scoped>
@@ -43,12 +73,39 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px;
 }
 
-.graph {
+.error {
+  margin: 0;
+  padding: 8px 16px;
+  background: #ffebe9;
+  color: #82071e;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  gap: 12px;
   flex: 1;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+  min-height: 0;
+  padding: 12px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.layers h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.layers label {
+  display: block;
+  margin-bottom: 6px;
 }
 </style>
