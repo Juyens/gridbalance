@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { formatNumber, formatPercent, unitSymbol } from '../format'
 import type { CaseData, DesignData, Metrics } from '../types'
+import { t } from '../i18n'
 
 const props = defineProps<{
   caseData: CaseData
@@ -14,16 +15,16 @@ const lineCount = computed(() =>
 )
 
 const rows = computed(() => {
-  const result: { name: string; metrics: Metrics; lines: number }[] = [
+  const result: { name: 'original' | 'mst' | 'design'; metrics: Metrics; lines: number }[] = [
     {
-      name: 'Original',
+      name: 'original',
       metrics: props.caseData.original,
       lines: props.caseData.branches.length,
     },
-    { name: 'MST', metrics: props.caseData.mst, lines: props.caseData.tree.length },
+    { name: 'mst', metrics: props.caseData.mst, lines: props.caseData.tree.length },
   ]
   if (props.design && lineCount.value !== null) {
-    result.push({ name: 'Design', metrics: props.design, lines: lineCount.value })
+    result.push({ name: 'design', metrics: props.design, lines: lineCount.value })
   }
   return result
 })
@@ -32,58 +33,68 @@ const rows = computed(() => {
 <template>
   <section class="metrics-panel" :class="{ stale: designing }" :aria-busy="designing">
     <h2>
-      Design results
-      <small v-if="designing" role="status">Updating…</small>
+      {{ t('results') }}
+      <small v-if="designing" role="status">{{ t('updating') }}</small>
     </h2>
 
     <div v-if="design" class="cards">
       <div class="card">
-        <span>Cost</span>
+        <span>{{ t('cost') }}</span>
         <strong>{{ formatNumber(design.cost) }} {{ unitSymbol(caseData.costUnit) }}</strong>
-        <small>{{ formatPercent(design.cost, caseData.original.cost) }} of the original</small>
+        <small>{{
+          t('originalShare', { value: formatPercent(design.cost, caseData.original.cost) })
+        }}</small>
       </div>
       <div class="card">
-        <span>Bridges</span>
+        <span>{{ t('bridges') }}</span>
         <strong>{{ formatNumber(design.bridges) }}</strong>
-        <small>original has {{ formatNumber(caseData.original.bridges) }}</small>
+        <small>{{
+          t('originalBridges', { count: formatNumber(caseData.original.bridges) })
+        }}</small>
       </div>
       <div class="card">
-        <span>Supply</span>
+        <span>{{ t('supply') }}</span>
         <strong>{{ formatPercent(design.suppliedMw, caseData.totalLoadMw) }}</strong>
         <small>
-          {{ formatNumber(design.suppliedMw) }} of {{ formatNumber(caseData.totalLoadMw) }} MW
+          {{
+            t('suppliedLoad', {
+              supplied: formatNumber(design.suppliedMw),
+              total: formatNumber(caseData.totalLoadMw),
+            })
+          }}
         </small>
       </div>
       <div class="card">
-        <span>Lines</span>
+        <span>{{ t('lines') }}</span>
         <strong>{{ formatNumber(lineCount ?? 0) }}</strong>
-        <small>MST + {{ formatNumber(design.added.length) }} added</small>
+        <small>{{ t('addedLines', { count: formatNumber(design.added.length) }) }}</small>
       </div>
     </div>
-    <p v-else class="muted" role="status">Computing design…</p>
+    <p v-else class="muted" role="status">{{ t('computing') }}</p>
 
     <details class="comparison">
-      <summary>Compare networks</summary>
+      <summary>{{ t('compare') }}</summary>
       <div class="table-scroll">
         <table>
           <caption class="sr-only">
-            Network comparison. Cost in
             {{
-              unitSymbol(caseData.costUnit)
-            }}; supply as percentage of demand.
+              t('comparisonDescription', { unit: unitSymbol(caseData.costUnit) })
+            }}
           </caption>
           <thead>
             <tr>
-              <th scope="col"><span class="sr-only">Network</span></th>
-              <th scope="col">Cost</th>
-              <th scope="col">Bridges</th>
-              <th scope="col">Supply</th>
-              <th scope="col">Lines</th>
+              <th scope="col">
+                <span class="sr-only">{{ t('network') }}</span>
+              </th>
+              <th scope="col">{{ t('cost') }}</th>
+              <th scope="col">{{ t('bridges') }}</th>
+              <th scope="col">{{ t('coverage') }}</th>
+              <th scope="col">{{ t('lines') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.name" :class="{ highlight: row.name === 'Design' }">
-              <th scope="row">{{ row.name }}</th>
+            <tr v-for="row in rows" :key="row.name" :class="{ highlight: row.name === 'design' }">
+              <th scope="row">{{ t(row.name) }}</th>
               <td>{{ formatNumber(row.metrics.cost) }}</td>
               <td>{{ formatNumber(row.metrics.bridges) }}</td>
               <td>{{ formatPercent(row.metrics.suppliedMw, caseData.totalLoadMw) }}</td>
@@ -92,7 +103,9 @@ const rows = computed(() => {
           </tbody>
         </table>
       </div>
-      <p v-if="design" class="timing">Calculated in {{ formatNumber(design.elapsedMs) }} ms</p>
+      <p v-if="design" class="timing">
+        {{ t('calculated', { time: formatNumber(design.elapsedMs) }) }}
+      </p>
     </details>
   </section>
 </template>

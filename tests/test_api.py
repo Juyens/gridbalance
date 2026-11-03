@@ -106,3 +106,37 @@ def test_invalid_saved_theme_falls_back_to_system(tmp_path, monkeypatch):
     (settings / "theme").write_text("unknown", encoding="utf-8")
 
     assert Api(tmp_path).get_theme() is None
+
+
+def test_language_defaults_to_system(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert Api(tmp_path).get_language() is None
+
+
+@pytest.mark.parametrize("language", ["en", "es"])
+def test_language_survives_new_instance_without_changing_theme(
+    tmp_path, monkeypatch, language
+):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    api = Api(tmp_path)
+    api.set_theme("dark")
+    api.set_language(language)
+    reopened = Api(tmp_path)
+    assert reopened.get_language() == language
+    assert reopened.get_theme() == "dark"
+
+
+@pytest.mark.parametrize("language", ["fr", "", None, {}])
+def test_invalid_language_is_rejected(tmp_path, monkeypatch, language):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    with pytest.raises(ValueError, match="en or es"):
+        Api(tmp_path).set_language(language)
+    assert not (tmp_path / ".gridbalance").exists()
+
+
+def test_invalid_saved_language_falls_back_to_system(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    settings = tmp_path / ".gridbalance"
+    settings.mkdir()
+    (settings / "language").write_text("unknown", encoding="utf-8")
+    assert Api(tmp_path).get_language() is None

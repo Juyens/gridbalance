@@ -3,6 +3,8 @@ import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } fro
 import fcose from 'cytoscape-fcose'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { BranchStatus, CaseData, DesignData, Position, Selection } from '../types'
+import { t } from '../i18n'
+import { formatNumber } from '../format'
 
 cytoscape.use(fcose)
 
@@ -196,35 +198,34 @@ watch(
 </script>
 
 <template>
-  <section class="grid-canvas" aria-label="Power network">
+  <section class="grid-canvas" :aria-label="t('powerNetwork')">
     <div class="canvas-bar">
-      <span v-if="caseData"
-        >{{ caseData.buses.length.toLocaleString('en-US') }} buses <span class="separator">/</span>
-        {{ caseData.branches.length.toLocaleString('en-US') }} lines</span
-      >
-      <span v-else>Network</span>
+      <span v-if="caseData">{{
+        t('networkSize', {
+          buses: formatNumber(caseData.buses.length),
+          lines: formatNumber(caseData.branches.length),
+        })
+      }}</span>
+      <span v-else>{{ t('network') }}</span>
       <button type="button" :disabled="!caseData || computingLayout" @click="fitView">
-        Fit view
+        {{ t('fitView') }}
       </button>
     </div>
-    <div
-      ref="container"
-      class="cytoscape"
-      role="img"
-      aria-label="Interactive power network. Scroll to zoom, drag to pan, select a bus or line for details."
-    ></div>
+    <div ref="container" class="cytoscape" role="img" :aria-label="t('graphDescription')"></div>
 
-    <div v-if="computingLayout" class="overlay">Arranging {{ caseData?.buses.length }} buses…</div>
+    <div v-if="computingLayout" class="overlay" role="status">
+      {{ t('arranging', { count: formatNumber(caseData?.buses.length ?? 0) }) }}
+    </div>
 
     <ul class="legend">
-      <li><span class="line tree"></span>MST</li>
-      <li><span class="line added"></span>Added</li>
-      <li v-if="showBridges"><span class="line bridge"></span>Bridge</li>
-      <li v-if="showUnused"><span class="line unused"></span>Unused</li>
+      <li><span class="line tree"></span>{{ t('mst') }}</li>
+      <li><span class="line added"></span>{{ t('added') }}</li>
+      <li v-if="showBridges"><span class="line bridge"></span>{{ t('bridge') }}</li>
+      <li v-if="showUnused"><span class="line unused"></span>{{ t('unused') }}</li>
       <li><span class="dot kv400"></span>400 kV</li>
       <li><span class="dot kv220"></span>220 kV</li>
       <li><span class="dot kv110"></span>110 kV</li>
-      <li><span class="diamond"></span>Generation</li>
+      <li><span class="diamond"></span>{{ t('generation') }}</li>
     </ul>
   </section>
 </template>
@@ -257,11 +258,6 @@ watch(
   background: var(--surface);
   color: var(--text);
 }
-.separator {
-  margin: 0 6px;
-  color: var(--graph-tree);
-}
-
 .cytoscape {
   position: relative;
   flex: 1;

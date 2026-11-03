@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { formatNumber, unitSymbol } from '../format'
 import type { CaseData, DesignData, Selection } from '../types'
+import { t } from '../i18n'
 
 const props = defineProps<{
   caseData: CaseData
@@ -21,11 +22,11 @@ const branchStatus = computed(() => {
   if (!branch.value) return ''
   const index = branch.value.index
   const role = props.caseData.tree.includes(index)
-    ? 'MST'
+    ? t('mst')
     : props.design?.added.includes(index)
-      ? 'Added'
-      : 'Not used'
-  return props.design?.bridgeBranches.includes(index) ? `${role}, bridge` : role
+      ? t('added')
+      : t('notUsed')
+  return props.design?.bridgeBranches.includes(index) ? `${role}, ${t('bridge')}` : role
 })
 
 function busId(index: number): number {
@@ -35,34 +36,36 @@ function busId(index: number): number {
 
 <template>
   <section class="selection-details">
-    <h2>Element details</h2>
+    <h2>{{ t('elementDetails') }}</h2>
     <dl v-if="bus">
-      <dt>Bus</dt>
+      <dt>{{ t('bus') }}</dt>
       <dd>{{ bus.id }}</dd>
-      <dt>Voltage</dt>
+      <dt>{{ t('voltage') }}</dt>
       <dd>{{ formatNumber(bus.baseKv) }} kV</dd>
-      <dt>Zone</dt>
+      <dt>{{ t('zone') }}</dt>
       <dd>{{ bus.zone }}</dd>
-      <dt>Load</dt>
+      <dt>{{ t('load') }}</dt>
       <dd>{{ formatNumber(bus.loadMw) }} MW</dd>
-      <dt>Supply</dt>
+      <dt>{{ t('supply') }}</dt>
       <dd>{{ formatNumber(bus.supplyMw) }} MW</dd>
     </dl>
     <dl v-else-if="branch">
-      <dt>Branch</dt>
-      <dd>{{ busId(branch.from) }} to {{ busId(branch.to) }}</dd>
-      <dt>Type</dt>
-      <dd>{{ branch.isTransformer ? 'Transformer' : 'Line' }}</dd>
-      <dt>Cost</dt>
-      <dd>{{ branch.cost.toFixed(2) }} {{ unitSymbol(caseData.costUnit) }}</dd>
-      <dt>Capacity</dt>
+      <dt>{{ t('branch') }}</dt>
+      <dd>{{ busId(branch.from) }} → {{ busId(branch.to) }}</dd>
+      <dt>{{ t('type') }}</dt>
+      <dd>{{ branch.isTransformer ? t('transformer') : t('line') }}</dd>
+      <dt>{{ t('cost') }}</dt>
+      <dd>{{ formatNumber(branch.cost, 2) }} {{ unitSymbol(caseData.costUnit) }}</dd>
+      <dt>{{ t('capacity') }}</dt>
       <dd>
-        {{ branch.capacityMva === null ? 'Unlimited' : `${formatNumber(branch.capacityMva)} MVA` }}
+        {{
+          branch.capacityMva === null ? t('unlimited') : `${formatNumber(branch.capacityMva)} MVA`
+        }}
       </dd>
-      <dt>Status</dt>
+      <dt>{{ t('status') }}</dt>
       <dd>{{ branchStatus }}</dd>
     </dl>
-    <p v-else class="muted">Select a bus or line on the network.</p>
+    <p v-else class="muted">{{ t('selectionHint') }}</p>
   </section>
 </template>
 

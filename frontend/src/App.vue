@@ -7,6 +7,7 @@ import MetricsPanel from './components/MetricsPanel.vue'
 import SelectionDetails from './components/SelectionDetails.vue'
 import WeightPanel from './components/WeightPanel.vue'
 import { useGridDesign } from './composables/useGridDesign'
+import { locale, t, type Locale, type MessageKey } from './i18n'
 import type { Selection } from './types'
 
 const {
@@ -28,7 +29,41 @@ const showBridges = ref(false)
 const selection = ref<Selection>(null)
 const darkMode = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
 const themeBusy = ref(true)
-const themeError = ref<string | null>(null)
+const themeError = ref<MessageKey | null>(null)
+const languageBusy = ref(true)
+const languageError = ref<MessageKey | null>(null)
+
+watch(
+  locale,
+  (language) => {
+    document.documentElement.lang = language
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  try {
+    const language = await (await getApi()).get_language()
+    if (language) locale.value = language
+  } catch {
+    languageError.value = 'languageLoadError'
+  } finally {
+    languageBusy.value = false
+  }
+})
+
+async function changeLanguage(language: Locale) {
+  locale.value = language
+  languageBusy.value = true
+  languageError.value = null
+  try {
+    await (await getApi()).set_language(language)
+  } catch {
+    languageError.value = 'languageSaveError'
+  } finally {
+    languageBusy.value = false
+  }
+}
 
 watch(
   darkMode,
@@ -43,7 +78,7 @@ onMounted(async () => {
     const theme = await (await getApi()).get_theme()
     if (theme) darkMode.value = theme === 'dark'
   } catch {
-    themeError.value = 'Could not load the saved theme. Using your system preference.'
+    themeError.value = 'themeLoadError'
   } finally {
     themeBusy.value = false
   }
@@ -56,7 +91,7 @@ async function toggleTheme() {
   try {
     await (await getApi()).set_theme(darkMode.value ? 'dark' : 'light')
   } catch {
-    themeError.value = 'Theme changed, but the preference could not be saved.'
+    themeError.value = 'themeSaveError'
   } finally {
     themeBusy.value = false
   }
@@ -73,20 +108,30 @@ onMounted(start)
       :loading="loadingCase"
       :dark-mode="darkMode"
       :theme-busy="themeBusy"
+      :language-busy="languageBusy"
       @load="loadCase"
       @open="openCase"
       @toggle-theme="toggleTheme"
+      @language="changeLanguage"
     />
 
-    <p v-if="error || themeError" class="error" role="alert">{{ error || themeError }}</p>
+    <div v-if="error" class="error" role="alert">
+      {{ t('operationFailed') }}
+      <details>
+        <summary>{{ t('technicalDetails') }}</summary>
+        {{ error }}
+      </details>
+    </div>
+    <p v-if="themeError" class="error" role="alert">{{ t(themeError) }}</p>
+    <p v-if="languageError" class="error" role="alert">{{ t(languageError) }}</p>
 
     <main class="layout">
-      <aside class="sidebar controls" aria-label="Design controls">
+      <aside class="sidebar controls" :aria-label="t('controls')">
         <WeightPanel v-model="weights" />
         <section class="layers">
-          <h2>Layers</h2>
-          <label><input v-model="showBridges" type="checkbox" /> Bridges</label>
-          <label><input v-model="showUnused" type="checkbox" /> Unused lines</label>
+          <h2>{{ t('layers') }}</h2>
+          <label><input v-model="showBridges" type="checkbox" /> {{ t('bridges') }}</label>
+          <label><input v-model="showUnused" type="checkbox" /> {{ t('unusedLines') }}</label>
         </section>
       </aside>
 
@@ -100,7 +145,7 @@ onMounted(start)
         @select="selection = $event"
       />
 
-      <aside v-if="caseData" class="sidebar results" aria-label="Design results">
+      <aside v-if="caseData" class="sidebar results" :aria-label="t('results')">
         <MetricsPanel :case-data="caseData" :design="design" :designing="designing" />
         <SelectionDetails :case-data="caseData" :design="design" :selection="selection" />
       </aside>

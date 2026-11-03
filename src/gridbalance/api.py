@@ -27,6 +27,7 @@ class Api:
     def __init__(self, cases_dir: Path) -> None:
         self._cases_dir = cases_dir
         self._theme_path = Path.home() / ".gridbalance" / "theme"
+        self._language_path = Path.home() / ".gridbalance" / "language"
         self._case_path: Path | None = None
         self._reinforcer: Reinforcer | None = None
         # One computation at a time: fast slider moves send calls in parallel.
@@ -47,6 +48,19 @@ class Api:
             raise ValueError("theme must be light or dark")
         self._theme_path.parent.mkdir(parents=True, exist_ok=True)
         self._theme_path.write_text(theme, encoding="utf-8")
+
+    def get_language(self) -> str | None:
+        try:
+            language = self._language_path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return None
+        return language if language in ("en", "es") else None
+
+    def set_language(self, language: str) -> None:
+        if language not in ("en", "es"):
+            raise ValueError("language must be en or es")
+        self._language_path.parent.mkdir(parents=True, exist_ok=True)
+        self._language_path.write_text(language, encoding="utf-8")
 
     def list_cases(self) -> list[str]:
         """MATPOWER case files bundled in the cases folder."""

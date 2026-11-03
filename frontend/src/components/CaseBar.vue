@@ -1,20 +1,28 @@
 <script setup lang="ts">
+import { locale, t, type Locale } from '../i18n'
+
 defineProps<{
   cases: string[]
   current: string | null
   loading: boolean
   darkMode: boolean
   themeBusy: boolean
+  languageBusy: boolean
 }>()
 
 const emit = defineEmits<{
   load: [fileName: string]
   open: []
   toggleTheme: []
+  language: [language: Locale]
 }>()
 
 function onChange(event: Event) {
   emit('load', (event.target as HTMLSelectElement).value)
+}
+
+function onLanguageChange(event: Event) {
+  emit('language', (event.target as HTMLSelectElement).value as Locale)
 }
 </script>
 
@@ -22,7 +30,7 @@ function onChange(event: Event) {
   <header class="case-bar">
     <h1><img src="/favicon.svg" width="28" height="28" alt="" />GridBalance</h1>
     <label>
-      <span class="sr-only">Network case</span>
+      <span class="sr-only">{{ t('networkCase') }}</span>
       <select :disabled="loading" @change="onChange">
         <option
           v-for="name in cases"
@@ -34,7 +42,7 @@ function onChange(event: Event) {
         </option>
       </select>
     </label>
-    <button type="button" :disabled="loading" @click="emit('open')">Open .m file</button>
+    <button type="button" :disabled="loading" @click="emit('open')">{{ t('openFile') }}</button>
     <button
       class="theme-toggle"
       type="button"
@@ -42,9 +50,16 @@ function onChange(event: Event) {
       :disabled="themeBusy"
       @click="emit('toggleTheme')"
     >
-      Dark mode
+      {{ t('darkMode') }}
     </button>
-    <span v-if="loading" class="status" role="status">Loading…</span>
+    <label>
+      <span class="sr-only">{{ t('language') }}</span>
+      <select :value="locale" :disabled="languageBusy" @change="onLanguageChange">
+        <option value="en" lang="en">English</option>
+        <option value="es" lang="es">Español</option>
+      </select>
+    </label>
+    <span v-if="loading" class="status" role="status">{{ t('loading') }}</span>
   </header>
 </template>
 

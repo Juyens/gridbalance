@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import type { Weights } from '../types'
 import { PRESETS, rebalance, sameWeights } from '../weights'
+import { t, type MessageKey } from '../i18n'
+import { formatPercent } from '../format'
 
 const weights = defineModel<Weights>({ required: true })
 
-const SLIDERS: { key: keyof Weights; label: string; hint: string }[] = [
-  { key: 'cost', label: 'Cost', hint: 'Avoid adding lines' },
-  { key: 'robustness', label: 'Robustness', hint: 'Remove bridges' },
-  { key: 'supply', label: 'Supply', hint: 'Meet the demand' },
+const SLIDERS: { key: keyof Weights; hint: MessageKey }[] = [
+  { key: 'cost', hint: 'costHint' },
+  { key: 'robustness', hint: 'robustnessHint' },
+  { key: 'supply', hint: 'supplyHint' },
 ]
 
-const percent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+const presetLabels: Record<string, MessageKey> = {
+  Cheapest: 'Cheapest',
+  Economic: 'Economic',
+  Balanced: 'Balanced',
+  Robust: 'Robust',
+}
 
 function update(key: keyof Weights, event: Event) {
   const value = Number((event.target as HTMLInputElement).value)
@@ -21,7 +28,7 @@ function update(key: keyof Weights, event: Event) {
 
 <template>
   <section class="weight-panel">
-    <h2>Design priorities</h2>
+    <h2>{{ t('priorities') }}</h2>
 
     <div class="presets">
       <button
@@ -32,14 +39,14 @@ function update(key: keyof Weights, event: Event) {
         :aria-pressed="sameWeights(preset, weights)"
         @click="weights = { ...preset }"
       >
-        {{ name }}
+        {{ t(presetLabels[name]!) }}
       </button>
     </div>
 
     <label v-for="slider in SLIDERS" :key="slider.key" class="slider">
-      <span class="slider-head" :title="slider.hint">
-        <span>{{ slider.label }}</span>
-        <strong>{{ percent.format(weights[slider.key]) }}%</strong>
+      <span class="slider-head" :title="t(slider.hint)">
+        <span>{{ t(slider.key) }}</span>
+        <strong>{{ formatPercent(weights[slider.key], 100) }}</strong>
       </span>
       <input
         type="range"
@@ -47,8 +54,8 @@ function update(key: keyof Weights, event: Event) {
         max="100"
         step="0.1"
         :value="weights[slider.key]"
-        :aria-label="slider.label"
-        :aria-valuetext="`${percent.format(weights[slider.key])}% — ${slider.hint}`"
+        :aria-label="t(slider.key)"
+        :aria-valuetext="`${formatPercent(weights[slider.key], 100)} — ${t(slider.hint)}`"
         @input="update(slider.key, $event)"
       />
     </label>
