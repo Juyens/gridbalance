@@ -6,7 +6,7 @@ import pytest
 
 from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
-from gridbalance.ufds import DisjointSets
+from gridbalance.ufds import count, union
 
 CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
@@ -27,12 +27,13 @@ def tree_cost(grid, tree):
 
 
 def is_spanning_tree(grid, edge_indices):
-    sets = DisjointSets(len(grid.buses))
+    s = list(range(len(grid.buses)))
+    rank = [0] * len(grid.buses)
     for i in edge_indices:
         branch = grid.branches[i]
-        if not sets.union(branch.from_bus, branch.to_bus):
+        if not union(s, rank, branch.from_bus, branch.to_bus):
             return False  # cycle
-    return sets.count == 1
+    return count(s) == 1
 
 
 def brute_force_mst_cost(grid):

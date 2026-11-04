@@ -28,6 +28,10 @@ npm install --prefix frontend
 npm run build --prefix frontend
 ```
 
+`visualizacion.py` es opcional y solo sirve para redes pequeñas. Para dibujar hace
+falta instalar Graphviz en el sistema y tener `dot` en el `PATH`; el paquete de
+Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
+
 ## Ejecutar
 
 ```powershell
@@ -70,6 +74,7 @@ src/gridbalance/
   bridges.py            puentes con Tarjan
   flow.py               flujo máximo con Edmonds-Karp (incremental)
   reinforcement.py      refuerzo voraz con pesos
+  visualizacion.py      dibuja redes pequeñas con Graphviz (opcional)
   api.py                métodos que llama el frontend
   app.py                abre la ventana
 frontend/src/           interfaz en Vue
