@@ -4,16 +4,18 @@ from pathlib import Path
 from gridbalance.bridges import find_bridges
 from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
-from gridbalance.ufds import DisjointSets
+from gridbalance.ufds import count, union
 
 CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
 
 def component_count(grid, active):
-    sets = DisjointSets(len(grid.buses))
+    s = list(range(len(grid.buses)))
+    rank = [0] * len(grid.buses)
     for i in active:
-        sets.union(grid.branches[i].from_bus, grid.branches[i].to_bus)
-    return sets.count
+        branch = grid.branches[i]
+        union(s, rank, branch.from_bus, branch.to_bus)
+    return count(s)
 
 
 def brute_force_bridges(grid):

@@ -1,0 +1,8 @@
+graph {
+	node [shape=circle]
+	0
+	0 -- 1 [label=4]
+	1
+	1 -- 2 [label=3]
+	2
+}

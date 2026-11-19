@@ -14,28 +14,28 @@ FRONTEND_BUILD = REPO_ROOT / "frontend" / "dist" / "index.html"
 CASES_DIR = REPO_ROOT / "cases"
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="gridbalance")
-    parser.add_argument(
-        "--dev",
-        action="store_true",
-        help=f"load the Vite dev server at {DEV_SERVER_URL} instead of the build",
-    )
-    args = parser.parse_args()
+def main():
+  parser = argparse.ArgumentParser(prog="gridbalance")
+  parser.add_argument(
+    "--dev",
+    action="store_true",
+    help=f"load the Vite dev server at {DEV_SERVER_URL} instead of the build",
+  )
+  args = parser.parse_args()
 
-    if args.dev:
-        url = DEV_SERVER_URL
-    elif FRONTEND_BUILD.exists():
-        url = str(FRONTEND_BUILD)
-    else:
-        sys.exit(
-            "Frontend build not found: run 'npm run build' in frontend/ or use --dev."
-        )
+  if args.dev:
+    url = DEV_SERVER_URL
+  elif FRONTEND_BUILD.exists():
+    url = str(FRONTEND_BUILD)
+  else:
+    sys.exit(
+      "Frontend build not found: run 'npm run build' in frontend/ or use --dev."
+    )
 
-    webview.create_window(
-        "GridBalance", url, js_api=Api(CASES_DIR), width=1280, height=800
-    )
-    webview.start(
-        debug=args.dev,
-        icon=str(REPO_ROOT / "frontend" / "public" / "gridbalance.ico"),
-    )
+  webview.create_window(
+    "GridBalance", url, js_api=Api(CASES_DIR), width=1280, height=800
+  )
+  webview.start(
+    debug=args.dev,
+    icon=str(REPO_ROOT / "frontend" / "public" / "gridbalance.ico"),
+  )
