@@ -54,7 +54,7 @@ export function resultsCsv(data: CaseData, design: DesignData, weights: Weights)
       weights.supply,
     ])
   }
-  add('original', '', data.original, data.branches.length)
+  add('all_candidates', '', data.original, data.branches.length)
   add('mst', 0, data.mst, data.tree.length)
   design.steps.forEach((entry, index) =>
     add('step', index + 1, entry, data.tree.length + index + 1, entry.branch),

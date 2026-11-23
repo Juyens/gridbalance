@@ -14,9 +14,14 @@ export interface Metrics {
 
 export interface BusData {
   index: number
-  id: number
+  id: string // OpenStreetMap id
+  kind: 'substation' | 'plant' | 'place'
+  type: string
+  name: string
+  lat: number
+  lon: number
+  population: number | null
   baseKv: number
-  zone: number
   supplyMw: number
   loadMw: number
 }
@@ -27,21 +32,27 @@ export interface BranchData {
   to: number
   cost: number
   capacityMva: number | null // null means unlimited
-  isTransformer: boolean
+  lengthKm: number
+  kv: number
 }
 
-export type Position = [number, number]
+export interface ExistingLine {
+  name: string
+  voltagesKv: number[]
+  points: [number, number][] // longitude, latitude
+}
 
 export interface CaseData {
   name: string
   costUnit: string
+  zone: { lat: number; lon: number; radiusKm: number; totalSites: number }
   buses: BusData[]
   branches: BranchData[]
+  existingLines: ExistingLine[]
   tree: number[]
   totalLoadMw: number
-  original: Metrics
+  original: Metrics // using every possible line
   mst: Metrics
-  positions: Position[] | null
 }
 
 export interface DesignStep extends Metrics {
@@ -55,7 +66,5 @@ export interface DesignData extends Metrics {
   steps: DesignStep[]
   elapsedMs: number
 }
-
-export type BranchStatus = 'tree' | 'added' | 'unused'
 
 export type Selection = { kind: 'bus'; index: number } | { kind: 'branch'; index: number } | null

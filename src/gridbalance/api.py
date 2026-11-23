@@ -1,7 +1,6 @@
 """Methods exposed to the frontend as window.pywebview.api."""
 
 import base64
-import json
 import math
 import threading
 import time
@@ -11,19 +10,17 @@ from tempfile import TemporaryDirectory
 
 import webview
 
-from gridbalance.bridges import find_bridges
-from gridbalance.grid import load_grid
+from gridbalance.osm import NoDataError, load_dataset
 from gridbalance.reinforcement import Reinforcer, Weights
-
-LAYOUT_SUFFIX = ".layout.json"
+from gridbalance.zone import build_zone_grid
 
 
 class Api:
-  def __init__(self, cases_dir):
-    self._cases_dir = cases_dir
+  def __init__(self, data_dir):
+    self._data_dir = data_dir
+    self._dataset = None  #read on the first zone
     self._theme_path = Path.home() / ".gridbalance" / "theme"
     self._language_path = Path.home() / ".gridbalance" / "language"
-    self._case_path = None
     self._reinforcer = None
     #One computation at a time: fast slider moves send calls in parallel.
     self._lock = threading.Lock()
@@ -57,38 +54,28 @@ class Api:
     self._language_path.parent.mkdir(parents=True, exist_ok=True)
     self._language_path.write_text(language, encoding="utf-8")
 
-  def list_cases(self):
-    """MATPOWER case files bundled in the cases folder."""
-    return sorted(path.name for path in self._cases_dir.glob("*.m"))
-
-  def load_case(self, file_name):
-    return self._load(self._cases_dir / file_name)
-
-  def open_case(self):
-    """Lets the user pick any .m file; returns None if cancelled."""
-    paths = webview.windows[0].create_file_dialog(
-      webview.FileDialog.OPEN, file_types=("MATPOWER case (*.m)",)
-    )
-    return self._load(Path(paths[0])) if paths else None
+  def load_zone(self, lat, lon, radius_km=None):
+    """Network around a point; None when there is no data near it."""
+    with self._lock:
+      if self._dataset is None:
+        self._dataset = load_dataset(self._data_dir)
+      try:
+        zone = self._dataset.zone(lat, lon, radius_km)
+      except NoDataError:
+        return None
+      zone_grid = build_zone_grid(zone)
+      self._reinforcer = Reinforcer(zone_grid.grid)
+      return zone_to_json(zone_grid, self._reinforcer)
 
   def design(self, weights):
     with self._lock:
-      reinforcer = self._require_case()
+      reinforcer = self._require_zone()
       started = time.perf_counter()
       design = reinforcer.design(
         Weights(weights["cost"], weights["robustness"], weights["supply"])
       )
       elapsed_ms = (time.perf_counter() - started) * 1000
-    return design_to_json(reinforcer.grid, design, elapsed_ms)
-
-  def save_layout(self, positions):
-    """Stores bus positions next to the case file so the next load is instant."""
-    with self._lock:
-      reinforcer = self._require_case()
-      if len(positions) != len(reinforcer.grid.buses):
-        raise ValueError("one position per bus is required")
-      layout = {"buses": len(positions), "positions": positions}
-      layout_path(self._case_path).write_text(json.dumps(layout), encoding="utf-8")
+    return design_to_json(design, elapsed_ms)
 
   def save_export(self, kind, content):
     if kind not in ("png", "csv") or not isinstance(content, str):
@@ -118,51 +105,43 @@ class Api:
       staging.replace(target)
     return True
 
-  def _load(self, path):
-    with self._lock:
-      reinforcer = Reinforcer(load_grid(path))
-      self._case_path, self._reinforcer = path, reinforcer
-    return case_to_json(reinforcer, read_layout(path, len(reinforcer.grid.buses)))
-
-  def _require_case(self):
+  def _require_zone(self):
     if self._reinforcer is None:
-      raise RuntimeError("no case loaded")
+      raise RuntimeError("no zone loaded")
     return self._reinforcer
-
-
-def layout_path(case_path):
-  return case_path.with_name(case_path.stem + LAYOUT_SUFFIX)
-
-
-def read_layout(case_path, bus_count):
-  """Cached positions, or None if missing or made for a different grid."""
-  path = layout_path(case_path)
-  if not path.exists():
-    return None
-  layout = json.loads(path.read_text(encoding="utf-8"))
-  return layout["positions"] if layout.get("buses") == bus_count else None
 
 
 def finite_or_none(value):
   return None if math.isinf(value) else value
 
 
-def case_to_json(reinforcer, positions):
-  grid = reinforcer.grid
+def zone_to_json(zone_grid, reinforcer):
+  zone, grid = zone_grid.zone, zone_grid.grid
   supply, load = grid.supply_mw(), grid.load_mw()
   return {
     "name": grid.name,
     "costUnit": grid.cost_unit,
+    "zone": {
+      "lat": zone.lat,
+      "lon": zone.lon,
+      "radiusKm": zone.radius_km,
+      "totalSites": zone.total_sites,
+    },
     "buses": [
       {
         "index": bus.index,
         "id": bus.id,
+        "kind": site.kind,
+        "type": site.type,
+        "name": site.name,
+        "lat": site.lat,
+        "lon": site.lon,
+        "population": site.population,
         "baseKv": bus.base_kv,
-        "zone": bus.zone,
         "supplyMw": supply[bus.index],
         "loadMw": load[bus.index],
       }
-      for bus in grid.buses
+      for bus, site in zip(grid.buses, zone.sites, strict=True)
     ],
     "branches": [
       {
@@ -171,9 +150,18 @@ def case_to_json(reinforcer, positions):
         "to": branch.to_bus,
         "cost": branch.cost,
         "capacityMva": finite_or_none(branch.capacity_mva),
-        "isTransformer": branch.is_transformer,
+        "lengthKm": zone_grid.lengths_km[branch.index],
+        "kv": zone_grid.voltages_kv[branch.index],
       }
       for branch in grid.branches
+    ],
+    "existingLines": [
+      {
+        "name": line.name,
+        "voltagesKv": line.voltages_kv,
+        "points": [[lon, lat] for lat, lon in line.points],
+      }
+      for line in zone.lines
     ],
     "tree": reinforcer.tree,
     "totalLoadMw": sum(load),
@@ -187,33 +175,28 @@ def case_to_json(reinforcer, positions):
       "bridges": len(reinforcer.tree),
       "suppliedMw": reinforcer.tree_flow.value,
     },
-    "positions": positions,
   }
 
 
-def design_to_json(grid, design, elapsed_ms):
-  active = list(design.tree)
-  remaining = set(active)
-  steps = []
+def design_to_json(design, elapsed_ms):
+  bridges = set(design.tree)  #in a tree every branch is a bridge
   for step in design.steps:
-    active.append(step.branch)
-    bridges = set(find_bridges(grid, active))
-    steps.append(
+    bridges.difference_update(step.removed_bridges)
+  return {
+    "added": list(design.added),
+    "bridgeBranches": sorted(bridges),
+    "cost": design.cost,
+    "bridges": design.bridges,
+    "suppliedMw": design.supplied_mw,
+    "steps": [
       {
         "branch": step.branch,
         "cost": step.cost,
         "bridges": step.bridges,
         "suppliedMw": step.supplied_mw,
-        "removedBridges": sorted(remaining - bridges),
+        "removedBridges": step.removed_bridges,
       }
-    )
-    remaining = bridges
-  return {
-    "added": list(design.added),
-    "bridgeBranches": sorted(remaining),
-    "cost": design.cost,
-    "bridges": design.bridges,
-    "suppliedMw": design.supplied_mw,
-    "steps": steps,
+      for step in design.steps
+    ],
     "elapsedMs": elapsed_ms,
   }

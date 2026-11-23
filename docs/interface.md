@@ -3,7 +3,7 @@
 ## Direction
 
 An engineering workspace: controls on the left, the network in the centre,
-results on the right. Keep Vue, Cytoscape, pywebview, the existing English
+results on the right. Keep Vue, MapLibre, pywebview, the existing English
 interface and system fonts. No added dependencies or decorative motion.
 
 ## Hallmark review and changes
@@ -23,7 +23,7 @@ interface and system fonts. No added dependencies or decorative motion.
 
 ## Colours and identity
 
-`tokens.css` holds the shared palette. Graph tokens use sRGB because Cytoscape
+`tokens.css` holds the shared palette. Graph tokens use sRGB because MapLibre
 does not parse OKLCH. System typography is intentional for an offline desktop
 tool. Green denotes added connections; red is reserved for bridges and errors.
 

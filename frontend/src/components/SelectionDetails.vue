@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatNumber, unitSymbol } from '../format'
+import { formatMoney, formatNumber } from '../format'
 import type { CaseData, DesignData, Selection } from '../types'
 import { t } from '../i18n'
+import { busCosts } from '../mapFeatures'
+import { busName } from '../names'
 
 const props = defineProps<{
   caseData: CaseData
@@ -18,6 +20,10 @@ const branch = computed(() =>
   props.selection?.kind === 'branch' ? props.caseData.branches[props.selection.index] : undefined,
 )
 
+const linesCost = computed(() =>
+  bus.value ? busCosts(props.caseData, props.design)[bus.value.index]! : 0,
+)
+
 const branchStatus = computed(() => {
   if (!branch.value) return ''
   const index = branch.value.index
@@ -29,8 +35,8 @@ const branchStatus = computed(() => {
   return props.design?.bridgeBranches.includes(index) ? `${role}, ${t('bridge')}` : role
 })
 
-function busId(index: number): number {
-  return props.caseData.buses[index]!.id
+function nameOf(index: number): string {
+  return busName(props.caseData.buses[index]!)
 }
 </script>
 
@@ -39,23 +45,31 @@ function busId(index: number): number {
     <h2>{{ t('elementDetails') }}</h2>
     <dl v-if="bus">
       <dt>{{ t('bus') }}</dt>
-      <dd>{{ bus.id }}</dd>
+      <dd>{{ busName(bus) }}</dd>
+      <dt>{{ t('type') }}</dt>
+      <dd>{{ t(bus.kind) }}</dd>
       <dt>{{ t('voltage') }}</dt>
-      <dd>{{ formatNumber(bus.baseKv) }} kV</dd>
-      <dt>{{ t('zone') }}</dt>
-      <dd>{{ bus.zone }}</dd>
+      <dd>{{ formatNumber(bus.baseKv, bus.baseKv % 1 ? 1 : 0) }} kV</dd>
+      <template v-if="bus.population !== null">
+        <dt>{{ t('population') }}</dt>
+        <dd>{{ formatNumber(bus.population) }}</dd>
+      </template>
       <dt>{{ t('load') }}</dt>
-      <dd>{{ formatNumber(bus.loadMw) }} MW</dd>
+      <dd>{{ formatNumber(bus.loadMw, 2) }} MW</dd>
       <dt>{{ t('supply') }}</dt>
-      <dd>{{ formatNumber(bus.supplyMw) }} MW</dd>
+      <dd>{{ formatNumber(bus.supplyMw, 1) }} MW</dd>
+      <dt>{{ t('linesCost') }}</dt>
+      <dd>{{ formatMoney(linesCost) }}</dd>
     </dl>
     <dl v-else-if="branch">
       <dt>{{ t('branch') }}</dt>
-      <dd>{{ busId(branch.from) }} → {{ busId(branch.to) }}</dd>
-      <dt>{{ t('type') }}</dt>
-      <dd>{{ branch.isTransformer ? t('transformer') : t('line') }}</dd>
+      <dd>{{ nameOf(branch.from) }} – {{ nameOf(branch.to) }}</dd>
+      <dt>{{ t('voltage') }}</dt>
+      <dd>{{ formatNumber(branch.kv, branch.kv % 1 ? 1 : 0) }} kV</dd>
+      <dt>{{ t('length') }}</dt>
+      <dd>{{ formatNumber(branch.lengthKm, 2) }} km</dd>
       <dt>{{ t('cost') }}</dt>
-      <dd>{{ formatNumber(branch.cost, 2) }} {{ unitSymbol(caseData.costUnit) }}</dd>
+      <dd>{{ formatMoney(branch.cost) }}</dd>
       <dt>{{ t('capacity') }}</dt>
       <dd>
         {{

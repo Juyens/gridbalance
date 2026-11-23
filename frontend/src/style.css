@@ -77,3 +77,13 @@ body,
   height: 100%;
   margin: 0;
 }
+
+* {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--surface);
+}

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { getApi } from './api'
-import CaseBar from './components/CaseBar.vue'
-import GridCanvas from './components/GridCanvas.vue'
+import AppHeader from './components/AppHeader.vue'
+import GridMap from './components/GridMap.vue'
 import MetricsPanel from './components/MetricsPanel.vue'
 import SelectionDetails from './components/SelectionDetails.vue'
 import WeightPanel from './components/WeightPanel.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
 import { designAtStep } from './replay'
 import { useGridDesign } from './composables/useGridDesign'
+import { useReplay } from './composables/useReplay'
 import { locale, t, type Locale, type MessageKey } from './i18n'
 import type { Selection } from './types'
 
@@ -16,20 +17,23 @@ const {
   caseData,
   design,
   weights,
-  cases,
+  zoneName,
+  radiusKm,
+  noData,
   loadingCase,
   designing,
   error,
-  loadCase,
-  openCase,
-  saveLayout,
+  goTo,
   start,
 } = useGridDesign()
 
-const showUnused = ref(false)
-const showBridges = ref(false)
+const panelsHidden = ref(false)
 const selection = ref<Selection>(null)
-const replayStep = ref<number | null>(null)
+const replay = useReplay(caseData, design)
+const replayFrame = replay.frame
+// Whole steps, so the panels only change when a line is complete.
+const replayStep = computed(() => (replayFrame.value ? Math.floor(replayFrame.value.steps) : null))
+const building = computed(() => replayFrame.value?.chapter === 'tree')
 const displayedDesign = computed(() =>
   caseData.value && design.value
     ? designAtStep(caseData.value, design.value, replayStep.value ?? design.value.steps.length)
@@ -37,17 +41,13 @@ const displayedDesign = computed(() =>
 )
 
 watch(
-  [caseData, design, weights],
+  [caseData, design, weights, () => replayFrame.value === null],
   () => {
-    replayStep.value = null
     selection.value = null
   },
   { flush: 'sync' },
 )
-watch(replayStep, (step) => {
-  const branch = step === null ? undefined : design.value?.steps[step - 1]?.branch
-  selection.value = branch === undefined ? null : { kind: 'branch', index: branch }
-})
+watch(weights, replay.close, { flush: 'sync' })
 const darkMode = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
 const themeBusy = ref(true)
 const themeError = ref<MessageKey | null>(null)
@@ -123,16 +123,13 @@ onMounted(start)
 
 <template>
   <div class="app">
-    <CaseBar
-      :cases="cases"
-      :current="caseData?.name ?? null"
-      :loading="loadingCase"
+    <AppHeader
+      :panels-hidden="panelsHidden"
       :dark-mode="darkMode"
       :theme-busy="themeBusy"
       :language-busy="languageBusy"
-      @load="loadCase"
-      @open="openCase"
       @toggle-theme="toggleTheme"
+      @toggle-panels="panelsHidden = !panelsHidden"
       @language="changeLanguage"
     />
 
@@ -143,47 +140,52 @@ onMounted(start)
         {{ error }}
       </details>
     </div>
+    <p v-if="noData" class="error" role="alert">{{ t('noZoneData') }}</p>
     <p v-if="themeError" class="error" role="alert">{{ t(themeError) }}</p>
     <p v-if="languageError" class="error" role="alert">{{ t(languageError) }}</p>
 
-    <main class="layout">
-      <aside class="sidebar controls" :aria-label="t('controls')">
+    <main class="layout" :class="{ wide: panelsHidden }">
+      <aside v-show="!panelsHidden" class="sidebar controls" :aria-label="t('controls')">
         <WeightPanel v-model="weights" />
-        <ReplayPanel
-          v-if="caseData && design"
-          v-model="replayStep"
-          :case-data="caseData"
-          :design="design"
-          :disabled="loadingCase || designing"
-        />
-        <section class="layers">
-          <h2>{{ t('layers') }}</h2>
-          <label><input v-model="showBridges" type="checkbox" /> {{ t('bridges') }}</label>
-          <label><input v-model="showUnused" type="checkbox" /> {{ t('unusedLines') }}</label>
-        </section>
       </aside>
 
-      <GridCanvas
+      <GridMap
+        v-model:radius="radiusKm"
         :case-data="caseData"
-        :design="displayedDesign"
-        :full-design="design"
+        :design="design"
+        :frame="replayFrame"
         :weights="weights"
         :busy="loadingCase || designing"
         :selection="selection"
-        :show-unused="showUnused"
-        :show-bridges="showBridges"
         :dark-mode="darkMode"
-        @layout-computed="saveLayout"
+        @place="goTo($event.center[1], $event.center[0], $event.name)"
         @select="selection = $event"
         @error="error = $event"
-      />
+      >
+        <template #bottom>
+          <ReplayPanel
+            v-if="caseData && displayedDesign"
+            :replay="replay"
+            :case-data="caseData"
+            :shown="displayedDesign"
+            :disabled="loadingCase || designing"
+          />
+        </template>
+      </GridMap>
 
-      <aside v-if="caseData" class="sidebar results" :aria-label="t('results')">
+      <aside
+        v-if="caseData"
+        v-show="!panelsHidden"
+        class="sidebar results"
+        :aria-label="t('results')"
+      >
         <MetricsPanel
           :case-data="caseData"
           :design="displayedDesign"
           :designing="designing"
           :step="replayStep"
+          :building="building"
+          :zone-name="zoneName"
         />
         <SelectionDetails :case-data="caseData" :design="displayedDesign" :selection="selection" />
       </aside>
@@ -207,9 +209,13 @@ onMounted(start)
 
 .layout {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr) 304px;
+  grid-template-columns: 280px minmax(0, 1fr) 324px;
   flex: 1;
   min-height: 0;
+}
+
+.layout.wide {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar {
@@ -219,7 +225,7 @@ onMounted(start)
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 20px;
+  padding: 18px 20px;
   background: var(--surface);
 }
 
@@ -231,34 +237,16 @@ onMounted(start)
   border-left: 1px solid var(--border);
 }
 
-.layers h2 {
-  margin: 0 0 12px;
-  font-size: 13px;
-}
-
-.layers label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  color: var(--muted);
-}
-
-@media (max-width: 1050px) and (min-width: 761px) {
-  .layout {
-    grid-template-columns: 200px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 260px;
+@media (max-width: 1100px) {
+  .layout:not(.wide) {
+    grid-template-columns: 240px minmax(0, 1fr) 288px;
   }
-  .results {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-    border-left: 0;
-    border-top: 1px solid var(--border);
+  .sidebar {
+    padding: 20px 16px;
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .app {
     height: auto;
     min-height: 100%;

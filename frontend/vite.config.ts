@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [vue()],
   // Relative asset paths so pywebview can load the build from disk.
   base: './',
-  // Cytoscape alone is ~600 kB; the app runs from disk, so one bundle is fine.
-  build: { chunkSizeWarningLimit: 1000 },
+  // MapLibre loads its worker as an ES module.
+  worker: { format: 'es' },
+  // MapLibre alone is ~1 MB; the app runs from disk, so one bundle is fine.
+  build: { chunkSizeWarningLimit: 1500 },
 })

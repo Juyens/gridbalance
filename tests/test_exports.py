@@ -13,7 +13,7 @@ from gridbalance.reinforcement import Reinforcer, Weights
 def test_replay_bridge_changes_match_every_intermediate_network(make_grid):
     grid = make_grid(4, [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 2, 3), (1, 3, 4)])
     design = Reinforcer(grid).design(Weights(0, 1, 0))
-    payload = design_to_json(grid, design, 1)
+    payload = design_to_json(design, 1)
     active = list(design.tree)
     remaining = set(active)
     for step in payload["steps"]:
