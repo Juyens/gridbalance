@@ -1,4 +1,4 @@
-"""Dibuja redes pequeñas con Graphviz; con 2383 barras es ilegible y lento."""
+"""Dibuja redes pequeñas con Graphviz; con miles de nodos es ilegible y lento."""
 
 from graphviz import Digraph, Graph
 

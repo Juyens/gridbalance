@@ -1,23 +1,17 @@
 <script setup lang="ts">
+import { formatNumber } from '../format'
+import { t, type MessageKey } from '../i18n'
 import type { Weights } from '../types'
 import { PRESETS, rebalance, sameWeights } from '../weights'
-import { t, type MessageKey } from '../i18n'
-import { formatPercent } from '../format'
+import WeightTriangle from './WeightTriangle.vue'
 
 const weights = defineModel<Weights>({ required: true })
 
-const SLIDERS: { key: keyof Weights; hint: MessageKey }[] = [
-  { key: 'cost', hint: 'costHint' },
-  { key: 'robustness', hint: 'robustnessHint' },
-  { key: 'supply', hint: 'supplyHint' },
+const OBJECTIVES: { key: keyof Weights; hint: MessageKey; sign: string; term: MessageKey }[] = [
+  { key: 'robustness', hint: 'robustnessHint', sign: '+', term: 'robustnessTerm' },
+  { key: 'supply', hint: 'supplyHint', sign: '+', term: 'supplyTerm' },
+  { key: 'cost', hint: 'costHint', sign: '−', term: 'costTerm' },
 ]
-
-const presetLabels: Record<string, MessageKey> = {
-  Cheapest: 'Cheapest',
-  Economic: 'Economic',
-  Balanced: 'Balanced',
-  Robust: 'Robust',
-}
 
 function update(key: keyof Weights, event: Event) {
   const value = Number((event.target as HTMLInputElement).value)
@@ -29,6 +23,9 @@ function update(key: keyof Weights, event: Event) {
 <template>
   <section class="weight-panel">
     <h2>{{ t('priorities') }}</h2>
+    <p class="intro">{{ t('prioritiesIntro') }}</p>
+
+    <WeightTriangle v-model="weights" />
 
     <div class="presets">
       <button
@@ -39,55 +36,88 @@ function update(key: keyof Weights, event: Event) {
         :aria-pressed="sameWeights(preset, weights)"
         @click="weights = { ...preset }"
       >
-        {{ t(presetLabels[name]!) }}
+        {{ t(name as MessageKey) }}
       </button>
     </div>
 
-    <label v-for="slider in SLIDERS" :key="slider.key" class="slider">
-      <span class="slider-head" :title="t(slider.hint)">
-        <span>{{ t(slider.key) }}</span>
-        <strong>{{ formatPercent(weights[slider.key], 100) }}</strong>
+    <label v-for="{ key, hint } in OBJECTIVES" :key="key" class="slider" :class="key">
+      <span class="head">
+        <span class="name">{{ t(key) }}</span>
+        <strong>{{ formatNumber(weights[key], 2) }}</strong>
       </span>
+      <small>{{ t(hint) }}</small>
       <input
         type="range"
         min="0"
-        max="100"
-        step="0.1"
-        :value="weights[slider.key]"
-        :aria-label="t(slider.key)"
-        :aria-valuetext="`${formatPercent(weights[slider.key], 100)} — ${t(slider.hint)}`"
-        @input="update(slider.key, $event)"
+        max="1"
+        step="0.01"
+        :value="weights[key]"
+        :aria-label="t(key)"
+        :aria-valuetext="`${formatNumber(weights[key], 2)}. ${t(hint)}`"
+        @input="update(key, $event)"
       />
     </label>
+
+    <section class="formula">
+      <h3>{{ t('scoreTitle') }}</h3>
+      <p v-for="{ key, sign, term } in OBJECTIVES" :key="key" :class="key">
+        <span class="sign">{{ sign }}</span>
+        <strong>{{ formatNumber(weights[key], 2) }}</strong>
+        <span>× {{ t(term) }}</span>
+      </p>
+      <small>{{ t('scoreNote') }}</small>
+    </section>
   </section>
 </template>
 
 <style scoped>
+.weight-panel {
+  --objective: var(--accent);
+}
+
 h2 {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0;
+  font-size: 16px;
+}
+
+.intro {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cost {
+  --objective: var(--objective-cost);
+}
+
+.robustness {
+  --objective: var(--objective-robustness);
+}
+
+.supply {
+  --objective: var(--objective-supply);
 }
 
 .presets {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 4px;
+  margin: 8px 0 14px;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--background);
-  margin-bottom: 24px;
 }
 
 .presets button {
   min-width: 0;
   min-height: 32px;
-  padding: 4px;
+  padding: 4px 2px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: inherit;
-  font: inherit;
-  cursor: pointer;
+  font-size: 13px;
 }
 
 .presets button.active {
@@ -99,27 +129,64 @@ h2 {
 
 .slider {
   display: block;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
-.slider-head {
+.head {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
   font-size: 13px;
 }
 
-.slider-head strong {
-  font-weight: 500;
-  color: var(--muted);
+.name {
+  color: var(--objective);
+  font-weight: 600;
+}
+
+.head strong {
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
+}
+
+small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .slider input {
   width: 100%;
   min-width: 0;
-  margin: 8px 0 0;
   height: 20px;
-  accent-color: var(--accent);
+  margin: 2px 0 0;
+  accent-color: var(--objective);
+}
+
+.formula {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.formula h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.formula p {
+  display: grid;
+  grid-template-columns: 10px 34px minmax(0, 1fr);
+  gap: 6px;
+  margin: 0 0 4px;
+  color: var(--objective);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.formula small {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.45;
 }
 </style>

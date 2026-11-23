@@ -1,14 +1,11 @@
+import heapq
 import random
 from itertools import combinations
-from pathlib import Path
 
 import pytest
 
-from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
 from gridbalance.ufds import count, union
-
-CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
 # (from_bus, to_bus, cost); the branch index is the position in the list.
 TEXTBOOK_EDGES = [
@@ -44,6 +41,26 @@ def brute_force_mst_cost(grid):
         for subset in combinations(range(len(grid.branches)), size)
         if is_spanning_tree(grid, subset)
     )
+
+
+def prim_cost(grid):
+    """Cost of the MST by a different algorithm, for a connected grid."""
+    neighbors = [[] for _ in grid.buses]
+    for branch in grid.branches:
+        neighbors[branch.from_bus].append((branch.cost, branch.to_bus))
+        neighbors[branch.to_bus].append((branch.cost, branch.from_bus))
+    visited = [False] * len(grid.buses)
+    heap = [(0, 0)]
+    total = 0
+    while heap:
+        cost, bus = heapq.heappop(heap)
+        if visited[bus]:
+            continue
+        visited[bus] = True
+        total += cost
+        for edge in neighbors[bus]:
+            heapq.heappush(heap, edge)
+    return total
 
 
 def test_textbook_graph(make_grid):
@@ -91,11 +108,9 @@ def test_disconnected_grid_gives_a_forest(make_grid):
     assert sorted(tree) == [0, 1, 3]  # V - components = 5 - 2 edges
 
 
-def test_polish_grid():
-    grid = load_grid(CASES_DIR / "case2383wp.m")
+def test_lima_tree_matches_prim(lima_grid):
+    tree = kruskal(lima_grid)
 
-    tree = kruskal(grid)
-
-    assert len(tree) == len(grid.buses) - 1
-    assert is_spanning_tree(grid, tree)
-    assert tree_cost(grid, tree) == pytest.approx(10059, abs=1)
+    assert len(lima_grid.buses) >= 1500  # size required by the course
+    assert is_spanning_tree(lima_grid, tree)
+    assert tree_cost(lima_grid, tree) == pytest.approx(prim_cost(lima_grid))

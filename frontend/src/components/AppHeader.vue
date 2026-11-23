@@ -2,24 +2,17 @@
 import { locale, t, type Locale } from '../i18n'
 
 defineProps<{
-  cases: string[]
-  current: string | null
-  loading: boolean
+  panelsHidden: boolean
   darkMode: boolean
   themeBusy: boolean
   languageBusy: boolean
 }>()
 
 const emit = defineEmits<{
-  load: [fileName: string]
-  open: []
   toggleTheme: []
+  togglePanels: []
   language: [language: Locale]
 }>()
-
-function onChange(event: Event) {
-  emit('load', (event.target as HTMLSelectElement).value)
-}
 
 function onLanguageChange(event: Event) {
   emit('language', (event.target as HTMLSelectElement).value as Locale)
@@ -27,30 +20,38 @@ function onLanguageChange(event: Event) {
 </script>
 
 <template>
-  <header class="case-bar">
+  <header class="app-header">
     <h1><img src="/favicon.svg" width="28" height="28" alt="" />GridBalance</h1>
-    <label>
-      <span class="sr-only">{{ t('networkCase') }}</span>
-      <select :disabled="loading" @change="onChange">
-        <option
-          v-for="name in cases"
-          :key="name"
-          :value="name"
-          :selected="current !== null && name === `${current}.m`"
-        >
-          {{ name }}
-        </option>
-      </select>
-    </label>
-    <button type="button" :disabled="loading" @click="emit('open')">{{ t('openFile') }}</button>
     <button
-      class="theme-toggle"
+      class="icon-button"
       type="button"
+      :aria-label="t('hidePanels')"
+      :title="t('hidePanels')"
+      :aria-pressed="panelsHidden"
+      @click="emit('togglePanels')"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" />
+      </svg>
+    </button>
+    <button
+      class="icon-button"
+      type="button"
+      :aria-label="t('darkMode')"
+      :title="t('darkMode')"
       :aria-pressed="darkMode"
       :disabled="themeBusy"
       @click="emit('toggleTheme')"
     >
-      {{ t('darkMode') }}
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path v-if="darkMode" d="M16.5 12A7 7 0 0 1 8 3.5a7 7 0 1 0 8.5 8.5Z" />
+        <template v-else>
+          <circle cx="10" cy="10" r="3.5" />
+          <path
+            d="M10 2v1.6M10 16.4V18M2 10h1.6M16.4 10H18M4.3 4.3l1.2 1.2M14.5 14.5l1.2 1.2M4.3 15.7l1.2-1.2M14.5 5.5l1.2-1.2"
+          />
+        </template>
+      </svg>
     </button>
     <label>
       <span class="sr-only">{{ t('language') }}</span>
@@ -59,17 +60,16 @@ function onLanguageChange(event: Event) {
         <option value="es" lang="es">Español</option>
       </select>
     </label>
-    <span v-if="loading" class="status" role="status">{{ t('loading') }}</span>
   </header>
 </template>
 
 <style scoped>
-.case-bar {
+.app-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 64px;
-  padding: 12px 20px;
+  min-height: 52px;
+  padding: 8px 20px;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -107,14 +107,26 @@ button {
   cursor: pointer;
 }
 
-.status {
-  color: var(--muted);
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  padding: 0;
 }
 
-.theme-toggle[aria-pressed='true'] {
+.icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-button[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-soft);
 }
 
 @media (max-width: 480px) {

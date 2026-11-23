@@ -1,12 +1,8 @@
 import random
-from pathlib import Path
 
 from gridbalance.bridges import find_bridges
-from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
 from gridbalance.ufds import count, union
-
-CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
 
 def component_count(grid, active):
@@ -76,11 +72,9 @@ def test_matches_brute_force_on_random_graphs(make_grid):
         assert sorted(find_bridges(grid)) == brute_force_bridges(grid)
 
 
-def test_polish_grid_and_its_mst():
-    grid = load_grid(CASES_DIR / "case2383wp.m")
+def test_lima_tree_is_all_bridges(lima_grid):
+    tree = kruskal(lima_grid)
 
-    # Same count as the Hito 1 report.
-    assert len(find_bridges(grid)) == 644
     # A tree has no cycles, so every one of its branches is a bridge.
-    tree = kruskal(grid)
-    assert sorted(find_bridges(grid, active=tree)) == sorted(tree)
+    assert sorted(find_bridges(lima_grid, active=tree)) == sorted(tree)
+    assert len(find_bridges(lima_grid)) < len(tree)

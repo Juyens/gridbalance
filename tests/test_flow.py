@@ -1,14 +1,10 @@
 import random
 from itertools import product
-from pathlib import Path
 
 import pytest
 
 from gridbalance.flow import FlowNetwork, max_flow
-from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
-
-CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
 
 def brute_force_min_cut(grid, active):
@@ -123,10 +119,10 @@ def test_incremental_flow_matches_flow_from_scratch(make_grid):
             )
 
 
-def test_polish_grid_and_its_mst():
-    grid = load_grid(CASES_DIR / "case2383wp.m")
+def test_lima_flow_is_bounded_by_supply_and_load(lima_grid):
+    everything = max_flow(lima_grid)
+    tree = max_flow(lima_grid, active=kruskal(lima_grid))
 
-    # The full grid supplies the whole positive load.
-    assert max_flow(grid) == pytest.approx(sum(grid.load_mw()))
-    # The MST is cheap but carries only about 55% of it.
-    assert max_flow(grid, active=kruskal(grid)) == pytest.approx(13641, abs=1)
+    assert 0 < tree < everything
+    limit = min(sum(lima_grid.supply_mw()), sum(lima_grid.load_mw()))
+    assert everything <= limit + 1e-6
