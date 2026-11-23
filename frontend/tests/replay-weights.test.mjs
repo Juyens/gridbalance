@@ -7,6 +7,10 @@ const { frameAt, makeTimeline, stepTime, timeOfLine } = await jiti.import('../sr
 const { CORNERS, pointToWeights, PRESETS, rebalance, weightsToPoint } =
   await jiti.import('../src/weights.ts')
 
+const { EXAMPLES, SCALE_PLACES, toPlace } = await jiti.import('../src/places.ts')
+const { formatCost } = await jiti.import('../src/format.ts')
+const { locale } = await jiti.import('../src/i18n.ts')
+
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-4, `${a} is not ${b}`)
 
 test('the video goes through the tree, the bridges and the reinforcement in order', () => {
@@ -83,4 +87,19 @@ test('a point outside the triangle gives valid weights', () => {
     assert.ok(Math.min(cost, robustness, supply) >= 0)
     close(cost + robustness + supply, 1)
   }
+})
+
+test('any place in Poland opens the Polish grid and the rest open a zone', () => {
+  const place = (name, countrycode) =>
+    toPlace({ geometry: { coordinates: [21, 52.2] }, properties: { name, countrycode } })
+  assert.equal(place('Warszawa', 'PL').isCase, true)
+  assert.equal(place('Cusco', 'PE').isCase, false)
+  assert.equal(EXAMPLES.filter((example) => example.isCase).length, 1)
+  assert.equal(SCALE_PLACES.filter((entry) => entry.place.isCase).length, 1)
+})
+
+test('costs are dollars in Peru and ohms in Poland', () => {
+  locale.value = 'en'
+  assert.equal(formatCost(1036, 'kUSD'), '$1.04M')
+  assert.equal(formatCost(13550, 'ohm'), '13,550 Ω')
 })

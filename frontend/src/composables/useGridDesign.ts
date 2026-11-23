@@ -2,6 +2,7 @@
 
 import { ref, shallowRef, watch } from 'vue'
 import { errorMessage, getApi } from '../api'
+import { POLAND, type Place } from '../places'
 import type { CaseData, DesignData, Weights } from '../types'
 import { PRESETS } from '../weights'
 
@@ -9,7 +10,12 @@ import { PRESETS } from '../weights'
 const DEBOUNCE_MS = 250
 
 // UPC San Miguel, Lima.
-const START = { lat: -12.0764, lon: -77.0934, name: 'UPC San Miguel' }
+const START: Place = {
+  name: 'UPC San Miguel',
+  address: 'Lima',
+  center: [-77.0934, -12.0764],
+  bounds: null,
+}
 
 export function useGridDesign() {
   // shallowRef: the zone holds thousands of buses and branches that never change,
@@ -17,7 +23,7 @@ export function useGridDesign() {
   const caseData = shallowRef<CaseData | null>(null)
   const design = shallowRef<DesignData | null>(null)
   const weights = ref<Weights>({ ...PRESETS.Balanced! })
-  const point = ref(START)
+  const place = ref(START)
   const zoneName = ref(START.name)
   const radiusKm = ref<number | null>(null) // null lets Python choose it
   const noData = ref(false)
@@ -50,13 +56,16 @@ export function useGridDesign() {
 
   async function loadZone() {
     const request = ++latestZone
-    const { lat, lon, name } = point.value
+    const { center, isCase, name } = place.value
     latestRequest += 1 // a design still on its way belongs to the previous zone
     loadingCase.value = true
     noData.value = false
     error.value = null
     try {
-      const data = await (await getApi()).load_zone(lat, lon, radiusKm.value)
+      const api = await getApi()
+      const data = isCase
+        ? await api.load_case()
+        : await api.load_zone(center[1], center[0], radiusKm.value)
       if (request !== latestZone) return
       if (!data) {
         noData.value = true
@@ -64,7 +73,7 @@ export function useGridDesign() {
       }
       design.value = null
       caseData.value = data
-      zoneName.value = name
+      zoneName.value = isCase ? `${POLAND.name} (${POLAND.address})` : name
       await requestDesign()
     } catch (reason) {
       if (request === latestZone) error.value = errorMessage(reason)
@@ -73,9 +82,12 @@ export function useGridDesign() {
     }
   }
 
-  async function goTo(lat: number, lon: number, name: string) {
-    point.value = { lat, lon, name }
-    await loadZone()
+  // Without a radius, the zone keeps the one chosen before.
+  async function goTo(target: Place, radius: number | null = radiusKm.value) {
+    place.value = target
+    // Changing the radius already loads the zone.
+    if (radius !== radiusKm.value) radiusKm.value = radius
+    else await loadZone()
   }
 
   watch(radiusKm, loadZone)

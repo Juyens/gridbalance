@@ -67,11 +67,14 @@ npm run lint --prefix frontend
 ## Estructura
 
 ```
+cases/                  red de Polonia (MATPOWER) y su dibujo
 data/peru/              nodos y líneas del Perú (CSV)
 tools/build_dataset.py  genera data/ desde un extracto de OpenStreetMap
 src/gridbalance/
   osm.py                carga los datos y busca una zona
   zone.py               convierte la zona en el grafo (demanda, líneas, costos)
+  matpower.py           lector de archivos .m
+  case.py               red de Polonia, ubicada sobre el mapa
   grid.py               modelo de la red (barras, líneas, generadores)
   ufds.py               Union-Find
   mst.py                Kruskal
@@ -94,5 +97,7 @@ uv run tools/build_dataset.py peru-261122.osm.pbf data/peru
 ```
 
 OpenStreetMap no incluye demanda, capacidades ni costos: se estiman en `zone.py` (clase `Assumptions`), con las fuentes en [docs/sources.md](docs/sources.md).
+
+`cases/case2383wp.m` es la red de transmisión de Polonia (2383 barras, 2896 ramas), tomada del [repositorio de MATPOWER](https://github.com/MATPOWER/matpower/blob/master/data/case2383wp.m). Se usa con fines académicos. Se abre al buscar cualquier lugar de Polonia. El caso no publica coordenadas, así que su ubicación en el mapa es referencial: es el dibujo del grafo acomodado sobre el país. Sus demandas, capacidades y costos (reactancias en ohmios) sí son los del caso.
 
 El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Ambos necesitan conexión a internet.

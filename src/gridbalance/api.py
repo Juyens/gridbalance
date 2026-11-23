@@ -10,14 +10,16 @@ from tempfile import TemporaryDirectory
 
 import webview
 
+from gridbalance.case import load_case
 from gridbalance.osm import NoDataError, load_dataset
 from gridbalance.reinforcement import Reinforcer, Weights
 from gridbalance.zone import build_zone_grid
 
 
 class Api:
-  def __init__(self, data_dir):
+  def __init__(self, data_dir, case_path):
     self._data_dir = data_dir
+    self._case_path = case_path
     self._dataset = None  #read on the first zone
     self._theme_path = Path.home() / ".gridbalance" / "theme"
     self._language_path = Path.home() / ".gridbalance" / "language"
@@ -57,15 +59,36 @@ class Api:
   def load_zone(self, lat, lon, radius_km=None):
     """Network around a point; None when there is no data near it."""
     with self._lock:
-      if self._dataset is None:
-        self._dataset = load_dataset(self._data_dir)
       try:
-        zone = self._dataset.zone(lat, lon, radius_km)
+        return self._open(self._zone_grid(lat, lon, radius_km))
       except NoDataError:
         return None
-      zone_grid = build_zone_grid(zone)
-      self._reinforcer = Reinforcer(zone_grid.grid)
-      return zone_to_json(zone_grid, self._reinforcer)
+
+  def load_case(self):
+    """The Polish grid, for any place in Poland."""
+    with self._lock:
+      return self._open(load_case(self._case_path))
+
+  def measure(self, place):
+    """Size and times of a place (None for the Polish grid), without opening it."""
+    with self._lock:
+      started = time.perf_counter()
+      if place is None:
+        zone_grid = load_case(self._case_path)
+      else:
+        zone_grid = self._zone_grid(place["lat"], place["lon"], place["radiusKm"])
+      reinforcer = Reinforcer(zone_grid.grid)
+      ready = time.perf_counter()
+      design = reinforcer.design(Weights(1, 1, 1))
+      done = time.perf_counter()
+    return {
+      "nodes": len(zone_grid.grid.buses),
+      "lines": len(zone_grid.grid.branches),
+      "prepareMs": (ready - started) * 1000,
+      "designMs": (done - ready) * 1000,
+      "treeBridges": len(reinforcer.tree),
+      "designBridges": design.bridges,
+    }
 
   def design(self, weights):
     with self._lock:
@@ -105,6 +128,15 @@ class Api:
       staging.replace(target)
     return True
 
+  def _zone_grid(self, lat, lon, radius_km):
+    if self._dataset is None:
+      self._dataset = load_dataset(self._data_dir)
+    return build_zone_grid(self._dataset.zone(lat, lon, radius_km))
+
+  def _open(self, zone_grid):
+    self._reinforcer = Reinforcer(zone_grid.grid)
+    return zone_to_json(zone_grid, self._reinforcer)
+
   def _require_zone(self):
     if self._reinforcer is None:
       raise RuntimeError("no zone loaded")
@@ -124,7 +156,7 @@ def zone_to_json(zone_grid, reinforcer):
     "zone": {
       "lat": zone.lat,
       "lon": zone.lon,
-      "radiusKm": zone.radius_km,
+      "radiusKm": zone.radius_km,  #None when it is not a circle
       "totalSites": zone.total_sites,
     },
     "buses": [

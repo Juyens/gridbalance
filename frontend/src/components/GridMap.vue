@@ -14,16 +14,16 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { errorMessage, getApi } from '../api'
 import { resultsCsv } from '../export'
-import { formatMoney, formatNumber } from '../format'
+import { formatCost, formatNumber } from '../format'
 import { locale, t } from '../i18n'
 import {
   branchFeatures,
   busCosts,
   busFeatures,
   circleFeature,
-  circlePoints,
   existingFeatures,
   position,
+  zonePoints,
   type FeatureCollection,
 } from '../mapFeatures'
 import { MapReplay } from '../mapReplay'
@@ -144,16 +144,20 @@ function setData(name: SourceName, data: FeatureCollection) {
   map?.getSource<GeoJSONSource>(name)?.setData(data)
 }
 
+function money(cost: number): string {
+  return formatCost(cost, props.caseData!.costUnit)
+}
+
 function drawZone() {
   if (!styleReady || !props.caseData) return
-  setData('circle', circleFeature(props.caseData.zone))
+  setData('circle', circleFeature(props.caseData))
   setData('existing', existingFeatures(props.caseData))
 }
 
 function drawDesign() {
   if (!styleReady || !props.caseData) return
-  const label = (bus: BusData, cost: number) => `${busName(bus)}\n${formatMoney(cost)}`
-  setData('branches', branchFeatures(props.caseData, props.design, formatMoney))
+  const label = (bus: BusData, cost: number) => `${busName(bus)}\n${money(cost)}`
+  setData('branches', branchFeatures(props.caseData, props.design, money))
   setData('buses', busFeatures(props.caseData, props.design, label))
 }
 
@@ -184,7 +188,7 @@ function showFrame() {
 function fitZone() {
   if (!props.caseData) return
   const bounds = new LngLatBounds()
-  for (const point of circlePoints(props.caseData.zone)) bounds.extend(point)
+  for (const point of zonePoints(props.caseData)) bounds.extend(point)
   const bottom = props.frame ? REPLAY_HEIGHT : FIT_PADDING.bottom
   map?.fitBounds(bounds, { padding: { ...FIT_PADDING, bottom } })
 }
@@ -288,9 +292,7 @@ function busPopup(bus: BusData): string[] {
   const lines = [busName(bus)]
   if (bus.supplyMw > 0) lines.push(`${t('supply')}: ${formatNumber(bus.supplyMw, 1)} MW`)
   if (bus.loadMw > 0) lines.push(`${t('load')}: ${formatNumber(bus.loadMw, 2)} MW`)
-  lines.push(
-    `${t('linesCost')}: ${formatMoney(busCosts(props.caseData!, props.design)[bus.index]!)}`,
-  )
+  lines.push(`${t('linesCost')}: ${money(busCosts(props.caseData!, props.design)[bus.index]!)}`)
   return lines
 }
 
@@ -298,14 +300,19 @@ function branchPopup(branch: BranchData): string[] {
   const { buses } = props.caseData!
   return [
     `${busName(buses[branch.from]!)} – ${busName(buses[branch.to]!)}`,
-    `${t('cost')}: ${formatMoney(branch.cost)}`,
-    `${formatNumber(branch.lengthKm, 2)} km, ${formatNumber(branch.kv, branch.kv % 1 ? 1 : 0)} kV`,
+    `${t('cost')}: ${money(branch.cost)}`,
+    [
+      ...(branch.lengthKm === null ? [] : [`${formatNumber(branch.lengthKm, 2)} km`]),
+      `${formatNumber(branch.kv, branch.kv % 1 ? 1 : 0)} kV`,
+    ].join(', '),
   ]
 }
 
 function goTo(place: Place) {
-  marker?.setLngLat(place.center).addTo(map!)
-  map?.flyTo({ center: place.center, zoom: START_ZOOM })
+  if (!place.isCase) {
+    marker?.setLngLat(place.center).addTo(map!)
+    map?.flyTo({ center: place.center, zoom: START_ZOOM })
+  }
   emit('place', place)
 }
 
@@ -338,7 +345,9 @@ watch(
   (data) => {
     exportSaved.value = false
     if (!data) return
-    marker?.setLngLat([data.zone.lon, data.zone.lat]).addTo(map!)
+    // Poland is not around a point.
+    if (data.zone.radiusKm === null) marker?.remove()
+    else marker?.setLngLat([data.zone.lon, data.zone.lat]).addTo(map!)
     drawZone()
     fitZone()
   },
@@ -374,12 +383,23 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
       <div class="search-card">
         <PlaceSearch :near="center" @select="goTo" />
         <div class="zone-line">
-          <label>
+          <span
+            v-if="caseData && caseData.zone.radiusKm === null"
+            class="approximate"
+            :title="t('approximateNote')"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.2" />
+              <path d="M8 7.3v3.6M8 4.8v.2" />
+            </svg>
+            {{ t('approximate') }}
+          </span>
+          <label v-else>
             {{ t('radius') }}
             <select v-model="radiusKm" :disabled="busy">
               <option :value="null">
                 {{
-                  caseData && radiusKm === null
+                  caseData && radiusKm === null && caseData.zone.radiusKm !== null
                     ? t('automaticRadius', { radius: formatNumber(caseData.zone.radiusKm) })
                     : t('automatic')
                 }}
@@ -528,6 +548,22 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
 
 .busy {
   color: var(--accent);
+}
+
+.approximate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.approximate svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
 }
 
 .actions {

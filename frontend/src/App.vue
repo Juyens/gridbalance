@@ -7,6 +7,7 @@ import MetricsPanel from './components/MetricsPanel.vue'
 import SelectionDetails from './components/SelectionDetails.vue'
 import WeightPanel from './components/WeightPanel.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
+import ScaleDialog from './components/ScaleDialog.vue'
 import { designAtStep } from './replay'
 import { useGridDesign } from './composables/useGridDesign'
 import { useReplay } from './composables/useReplay'
@@ -28,6 +29,7 @@ const {
 } = useGridDesign()
 
 const panelsHidden = ref(false)
+const scaleDialog = ref<InstanceType<typeof ScaleDialog>>()
 const selection = ref<Selection>(null)
 const replay = useReplay(caseData, design)
 const replayFrame = replay.frame
@@ -130,6 +132,7 @@ onMounted(start)
       :language-busy="languageBusy"
       @toggle-theme="toggleTheme"
       @toggle-panels="panelsHidden = !panelsHidden"
+      @scale="scaleDialog?.show()"
       @language="changeLanguage"
     />
 
@@ -158,7 +161,7 @@ onMounted(start)
         :busy="loadingCase || designing"
         :selection="selection"
         :dark-mode="darkMode"
-        @place="goTo($event.center[1], $event.center[0], $event.name)"
+        @place="goTo($event)"
         @select="selection = $event"
         @error="error = $event"
       >
@@ -190,6 +193,8 @@ onMounted(start)
         <SelectionDetails :case-data="caseData" :design="displayedDesign" :selection="selection" />
       </aside>
     </main>
+
+    <ScaleDialog ref="scaleDialog" @open="(place, radius) => goTo(place, radius)" />
   </div>
 </template>
 

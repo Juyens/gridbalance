@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatMoney, formatNumber } from '../format'
+import { formatCost, formatNumber } from '../format'
 import type { CaseData, DesignData, Selection } from '../types'
 import { t } from '../i18n'
 import { busCosts } from '../mapFeatures'
@@ -59,17 +59,19 @@ function nameOf(index: number): string {
       <dt>{{ t('supply') }}</dt>
       <dd>{{ formatNumber(bus.supplyMw, 1) }} MW</dd>
       <dt>{{ t('linesCost') }}</dt>
-      <dd>{{ formatMoney(linesCost) }}</dd>
+      <dd>{{ formatCost(linesCost, caseData.costUnit) }}</dd>
     </dl>
     <dl v-else-if="branch">
       <dt>{{ t('branch') }}</dt>
       <dd>{{ nameOf(branch.from) }} – {{ nameOf(branch.to) }}</dd>
       <dt>{{ t('voltage') }}</dt>
       <dd>{{ formatNumber(branch.kv, branch.kv % 1 ? 1 : 0) }} kV</dd>
-      <dt>{{ t('length') }}</dt>
-      <dd>{{ formatNumber(branch.lengthKm, 2) }} km</dd>
+      <template v-if="branch.lengthKm !== null">
+        <dt>{{ t('length') }}</dt>
+        <dd>{{ formatNumber(branch.lengthKm, 2) }} km</dd>
+      </template>
       <dt>{{ t('cost') }}</dt>
-      <dd>{{ formatMoney(branch.cost) }}</dd>
+      <dd>{{ formatCost(branch.cost, caseData.costUnit) }}</dd>
       <dt>{{ t('capacity') }}</dt>
       <dd>
         {{
