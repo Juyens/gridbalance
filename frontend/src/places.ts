@@ -11,6 +11,7 @@ export interface Place {
   address: string
   center: LngLat
   bounds: [LngLat, LngLat] | null // south-west and north-east corners
+  isCase?: boolean // opens the Polish grid instead of a zone
 }
 
 const example = (name: string, address: string, lat: number, lon: number): Place => ({
@@ -20,6 +21,11 @@ const example = (name: string, address: string, lat: number, lon: number): Place
   bounds: null,
 })
 
+export const POLAND: Place = {
+  ...example('Polonia', 'case2383wp', 52, 19.3),
+  isCase: true,
+}
+
 // Shown before typing: zones of very different size.
 export const EXAMPLES: Place[] = [
   example('UPC San Miguel', 'Lima', -12.0764, -77.0934),
@@ -27,6 +33,18 @@ export const EXAMPLES: Place[] = [
   example('Plaza de Armas', 'Cusco', -13.517, -71.9785),
   example('Plaza de Armas', 'Arequipa', -16.3988, -71.5369),
   example('Oxapampa', 'Pasco', -10.5776, -75.4026),
+  POLAND,
+]
+
+// Networks of the scale view, from the smallest to the largest.
+export const SCALE_PLACES: { place: Place; radiusKm: number | null }[] = [
+  { place: example('Oxapampa', 'Pasco', -10.5776, -75.4026), radiusKm: 10 },
+  { place: example('Cusco', 'Cusco', -13.517, -71.9785), radiusKm: 5 },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 5 },
+  { place: example('Arequipa', 'Arequipa', -16.3988, -71.5369), radiusKm: 10 },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 10 },
+  { place: POLAND, radiusKm: null },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 20 },
 ]
 
 interface PhotonFeature {
@@ -39,6 +57,7 @@ interface PhotonFeature {
     city?: string
     state?: string
     country?: string
+    countrycode?: string
     extent?: [number, number, number, number] // west, north, east, south
   }
 }
@@ -77,6 +96,7 @@ export function toPlace({ geometry, properties: p }: PhotonFeature): Place {
     name,
     address: [...parts].filter(Boolean).join(', '),
     center: geometry.coordinates,
+    isCase: p.countrycode === 'PL',
     bounds: p.extent
       ? [
           [p.extent[0], p.extent[3]],

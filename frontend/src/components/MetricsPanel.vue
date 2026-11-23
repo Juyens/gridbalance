@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatMoney, formatNumber, formatPercent } from '../format'
+import { formatCost, formatNumber, formatPercent } from '../format'
 import type { CaseData, DesignData, Metrics } from '../types'
 import { t } from '../i18n'
 import MetricBars, { type BarRow } from './MetricBars.vue'
@@ -29,7 +29,7 @@ function rows(value: (metrics: Metrics) => number, text: (metrics: Metrics) => s
 const costRows = computed(() =>
   rows(
     (m) => m.cost,
-    (m) => formatMoney(m.cost),
+    (m) => formatCost(m.cost, props.caseData.costUnit),
   ),
 )
 const bridgeRows = computed(() =>

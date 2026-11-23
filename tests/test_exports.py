@@ -35,7 +35,7 @@ def set_dialog(monkeypatch, result):
 def test_csv_export_supports_excel_and_cancel_preserves_files(tmp_path, monkeypatch):
     target = tmp_path / "report.csv"
     set_dialog(monkeypatch, (str(target),))
-    api = Api(tmp_path)
+    api = Api(tmp_path, tmp_path)
     assert api.save_export("csv", "name,cost\r\nEspaña,12.5\r\n") is True
     assert target.read_bytes().startswith(b"\xef\xbb\xbf")
     before = target.read_bytes()
@@ -51,7 +51,8 @@ def test_png_export_decodes_binary(tmp_path, monkeypatch):
         "AAwMCAO+jRZkAAAAASUVORK5CYII="
     )
     set_dialog(monkeypatch, (str(target),))
-    assert Api(tmp_path).save_export("png", base64.b64encode(png).decode()) is True
+    api = Api(tmp_path, tmp_path)
+    assert api.save_export("png", base64.b64encode(png).decode()) is True
     assert target.read_bytes() == png
 
 
@@ -61,7 +62,7 @@ def test_png_export_decodes_binary(tmp_path, monkeypatch):
 def test_invalid_export_is_rejected_before_dialog(tmp_path, monkeypatch, kind, content):
     monkeypatch.setattr(webview, "windows", [])
     with pytest.raises(ValueError):
-        Api(tmp_path).save_export(kind, content)
+        Api(tmp_path, tmp_path).save_export(kind, content)
 
 
 def test_failed_export_keeps_previous_file(tmp_path, monkeypatch):
@@ -74,6 +75,6 @@ def test_failed_export_keeps_previous_file(tmp_path, monkeypatch):
 
     monkeypatch.setattr(Path, "replace", fail_replace)
     with pytest.raises(PermissionError, match="file locked"):
-        Api(tmp_path).save_export("csv", "new content")
+        Api(tmp_path, tmp_path).save_export("csv", "new content")
     assert target.read_text(encoding="utf-8") == "original"
     assert list(tmp_path.iterdir()) == [target]

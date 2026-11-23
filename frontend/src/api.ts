@@ -1,6 +1,6 @@
 // Bridge to the Python Api class exposed by pywebview as window.pywebview.api.
 
-import type { CaseData, DesignData, Weights } from './types'
+import type { CaseData, DesignData, Measure, Weights } from './types'
 import type { Locale } from './i18n'
 
 export interface BackendApi {
@@ -10,6 +10,8 @@ export interface BackendApi {
   get_language(): Promise<Locale | null>
   set_language(language: Locale): Promise<void>
   load_zone(lat: number, lon: number, radiusKm: number | null): Promise<CaseData | null>
+  load_case(): Promise<CaseData>
+  measure(place: { lat: number; lon: number; radiusKm: number | null } | null): Promise<Measure>
   design(weights: Weights): Promise<DesignData>
   save_export(kind: 'png' | 'csv', content: string): Promise<boolean>
 }

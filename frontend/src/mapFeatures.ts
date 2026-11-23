@@ -57,7 +57,7 @@ export function busFeatures(
       properties: {
         index: bus.index,
         source: isSource(bus),
-        name: bus.name,
+        name: bus.kind === 'bus' ? '' : bus.name,
         icon: isSource(bus) ? (bus.kind === 'plant' ? 'plant' : 'source') : 'load',
         label: label(bus, costs[bus.index]!),
       },
@@ -107,7 +107,10 @@ export function existingFeatures(data: CaseData): FeatureCollection {
   )
 }
 
-export function circlePoints({ lat, lon, radiusKm }: CaseData['zone']): Coordinates[] {
+// Outline of the zone; without a radius, its buses say how far it reaches.
+export function zonePoints(data: CaseData): Coordinates[] {
+  const { lat, lon, radiusKm } = data.zone
+  if (radiusKm === null) return data.buses.map(position)
   const dLat = radiusKm / EARTH_KM_PER_DEGREE
   const dLon = dLat / Math.cos((lat * Math.PI) / 180)
   return Array.from({ length: CIRCLE_POINTS + 1 }, (_, i) => {
@@ -116,11 +119,12 @@ export function circlePoints({ lat, lon, radiusKm }: CaseData['zone']): Coordina
   })
 }
 
-export function circleFeature(zone: CaseData['zone']): FeatureCollection {
+export function circleFeature(data: CaseData): FeatureCollection {
+  if (data.zone.radiusKm === null) return collection([])
   return collection([
     {
       type: 'Feature',
-      geometry: { type: 'LineString', coordinates: circlePoints(zone) },
+      geometry: { type: 'LineString', coordinates: zonePoints(data) },
       properties: {},
     },
   ])

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { SPEEDS, type useReplay } from '../composables/useReplay'
-import { formatMoney, formatNumber, formatPercent } from '../format'
+import { formatCost, formatNumber, formatPercent } from '../format'
 import { t, type MessageKey } from '../i18n'
 import type { Chapter } from '../replay'
 import type { CaseData, DesignData } from '../types'
@@ -57,7 +57,7 @@ const counters = computed(() => {
   const cost = inTree ? treeCosts.value[Math.floor(now.lines)]! : props.shown.cost
   const list: { label: MessageKey; value: string; alert?: boolean }[] = [
     { label: 'linesBuilt', value: formatNumber(lines) },
-    { label: 'cost', value: formatMoney(cost) },
+    { label: 'cost', value: formatCost(cost, props.caseData.costUnit) },
   ]
   if (!inTree) {
     list.push(

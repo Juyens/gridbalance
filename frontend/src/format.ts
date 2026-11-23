@@ -15,12 +15,14 @@ export function formatPercent(part: number, total: number): string {
     : '—'
 }
 
-// Costs come in thousands of dollars: 1036 reads as "1,04 M US$".
-export function formatMoney(thousands: number): string {
+// Thousands of dollars read as "1,04 M US$"; the Polish case costs are ohms.
+export function formatCost(cost: number, unit: string): string {
+  if (unit !== 'kUSD')
+    return `${formatNumber(cost, cost < 100 ? 1 : 0)} ${unit === 'ohm' ? 'Ω' : unit}`
   return new Intl.NumberFormat(locale.value, {
     style: 'currency',
     currency: 'USD',
     notation: 'compact',
     maximumSignificantDigits: 3,
-  }).format(thousands * 1000)
+  }).format(cost * 1000)
 }
