@@ -33,7 +33,7 @@ def main():
     )
 
   webview.create_window(
-    "GridBalance", url, js_api=Api(DATA_DIR), width=1280, height=800
+    "PwrGrid", url, js_api=Api(DATA_DIR), width=1280, height=800
   )
   webview.start(
     debug=args.dev,

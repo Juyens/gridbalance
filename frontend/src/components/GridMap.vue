@@ -645,10 +645,6 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
 }
 
 @media (max-width: 900px) {
-  .grid-map {
-    height: 75vh;
-    min-height: 460px;
-  }
   .top {
     flex-direction: column;
     align-items: stretch;

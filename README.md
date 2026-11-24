@@ -1,4 +1,4 @@
-# GridBalance
+# PwrGrid
 
 Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se busca cualquier lugar del Perú en un mapa y la app diseña la red eléctrica de esa zona.
 
@@ -40,7 +40,7 @@ Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
 uv run gridbalance
 ```
 
-Escribe una dirección o lugar en el buscador. El radio de la zona se elige solo, o se fija en el panel izquierdo.
+Escribe una dirección o lugar en el buscador. Usa el control debajo del buscador para fijar el radio. En la barra superior, abre **Diseño** para ajustar las prioridades o **Resultados** para consultar las métricas y el elemento seleccionado.
 
 ### Modo desarrollo
 
