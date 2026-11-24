@@ -40,6 +40,16 @@ export const EXAMPLES: Place[] = [
   POLAND,
 ]
 
+export const SCALE_PLACES: { place: Place; radiusKm: number | null }[] = [
+  { place: example('Oxapampa', 'Pasco', -10.5776, -75.4026), radiusKm: 10 },
+  { place: example('Cusco', 'Cusco', -13.517, -71.9785), radiusKm: 5 },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 5 },
+  { place: example('Arequipa', 'Arequipa', -16.3988, -71.5369), radiusKm: 10 },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 10 },
+  { place: POLAND, radiusKm: null },
+  { place: example('UPC San Miguel', 'Lima', -12.0764, -77.0934), radiusKm: 20 },
+]
+
 interface PhotonFeature {
   geometry: { coordinates: LngLat }
   properties: {

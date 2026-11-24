@@ -46,6 +46,8 @@ Pulsa **Mundo** para ver las líneas eléctricas y subestaciones cartografiadas 
 
 Busca **Polonia** o selecciona el marcador **MATPOWER case2383wp** para abrir la simulación histórica completa. El trazado del caso sobre el mapa es esquemático porque MATPOWER no incluye las coordenadas de sus nodos.
 
+Abre **Escala** para comparar el tamaño de distintas redes y sus tiempos de cálculo en tu computadora.
+
 ### Modo desarrollo
 
 Con recarga automática del frontend. En una terminal:

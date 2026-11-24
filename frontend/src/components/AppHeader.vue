@@ -13,6 +13,7 @@ defineProps<{
 const emit = defineEmits<{
   toggleTheme: []
   togglePanel: [panel: 'controls' | 'results', trigger: HTMLButtonElement]
+  scale: []
   language: [language: Locale]
 }>()
 
@@ -24,6 +25,12 @@ function onLanguageChange(event: Event) {
 <template>
   <header class="app-header">
     <h1><img src="/favicon.svg" width="28" height="28" alt="" />PwrGrid</h1>
+    <button type="button" class="tool-button" @click="emit('scale')">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 17V12M8 17V9M13 17V6M18 17V3" />
+      </svg>
+      {{ t('scale') }}
+    </button>
     <button
       class="tool-button"
       type="button"

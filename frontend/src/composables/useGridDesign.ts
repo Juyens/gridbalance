@@ -98,12 +98,16 @@ export function useGridDesign() {
     return pendingZone
   }
 
-  async function goTo(place: Place) {
+  function goTo(place: Place, radius: number | null = radiusKm.value) {
     point.value = place
-    await loadZone()
+    if (place.source !== 'poland' && radius !== radiusKm.value) {
+      radiusKm.value = radius
+      return pendingZone
+    }
+    return loadZone()
   }
 
-  watch(radiusKm, loadZone)
+  watch(radiusKm, loadZone, { flush: 'sync' })
 
   watch(weights, () => {
     latestRequest += 1

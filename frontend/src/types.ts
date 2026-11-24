@@ -68,4 +68,13 @@ export interface DesignData extends Metrics {
   elapsedMs: number
 }
 
+export interface Measure {
+  nodes: number
+  lines: number
+  prepareMs: number
+  designMs: number
+  treeBridges: number
+  designBridges: number
+}
+
 export type Selection = { kind: 'bus'; index: number } | { kind: 'branch'; index: number } | null

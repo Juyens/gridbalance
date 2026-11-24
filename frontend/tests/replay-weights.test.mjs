@@ -7,6 +7,11 @@ const { frameAt, makeTimeline, stepTime, timeOfLine } = await jiti.import('../sr
 const { CORNERS, pointToWeights, PRESETS, rebalance, weightsToPoint } =
   await jiti.import('../src/weights.ts')
 
+const { EXAMPLES, POLAND, SCALE_PLACES, searchPlaces, toPlace } =
+  await jiti.import('../src/places.ts')
+const { formatCost } = await jiti.import('../src/format.ts')
+const { locale } = await jiti.import('../src/i18n.ts')
+
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-4, `${a} is not ${b}`)
 
 test('the video goes through the tree, the bridges and the reinforcement in order', () => {
@@ -83,4 +88,20 @@ test('a point outside the triangle gives valid weights', () => {
     assert.ok(Math.min(cost, robustness, supply) >= 0)
     close(cost + robustness + supply, 1)
   }
+})
+
+test('the historical Polish case and worldwide place searches use their own sources', async () => {
+  const place = (name, countrycode) =>
+    toPlace({ geometry: { coordinates: [21, 52.2] }, properties: { name, countrycode } })
+  assert.equal(place('Warszawa', 'PL').source, undefined)
+  assert.equal(place('Cusco', 'PE').source, 'peru')
+  assert.deepEqual(await searchPlaces('Polonia', [0, 0], new AbortController().signal), [POLAND])
+  assert.equal(EXAMPLES.filter((example) => example.source === 'poland').length, 1)
+  assert.equal(SCALE_PLACES.filter((entry) => entry.place.source === 'poland').length, 1)
+})
+
+test('costs are dollars in Peru and ohms in Poland', () => {
+  locale.value = 'en'
+  assert.equal(formatCost(1036, 'kUSD'), '$1.04M')
+  assert.equal(formatCost(13550, 'ohm'), '13,550 Ω')
 })

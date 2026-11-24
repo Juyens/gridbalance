@@ -7,10 +7,12 @@ import MetricsPanel from './components/MetricsPanel.vue'
 import SelectionDetails from './components/SelectionDetails.vue'
 import WeightPanel from './components/WeightPanel.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
+import ScaleDialog from './components/ScaleDialog.vue'
 import { designAtStep } from './replay'
 import { useGridDesign } from './composables/useGridDesign'
 import { useReplay } from './composables/useReplay'
 import { locale, t, type Locale, type MessageKey } from './i18n'
+import type { Place } from './places'
 import type { Selection } from './types'
 
 const {
@@ -29,6 +31,7 @@ const {
 
 const activePanel = ref<'controls' | 'results' | null>(null)
 const worldMode = ref(false)
+const scaleDialog = ref<InstanceType<typeof ScaleDialog>>()
 const panelClose = ref<HTMLButtonElement | null>(null)
 let panelTrigger: HTMLButtonElement | null = null
 
@@ -36,6 +39,11 @@ function closePanel() {
   activePanel.value = null
   panelTrigger?.focus()
   panelTrigger = null
+}
+
+function openScalePlace(place: Place, radiusKm: number | null) {
+  worldMode.value = false
+  return goTo(place, radiusKm)
 }
 
 async function togglePanel(panel: 'controls' | 'results', trigger: HTMLButtonElement) {
@@ -161,6 +169,7 @@ onMounted(start)
       :language-busy="languageBusy"
       @toggle-theme="toggleTheme"
       @toggle-panel="togglePanel"
+      @scale="scaleDialog?.show()"
       @language="changeLanguage"
     />
 
@@ -237,6 +246,7 @@ onMounted(start)
         </div>
       </aside>
     </main>
+    <ScaleDialog ref="scaleDialog" @open="openScalePlace" />
   </div>
 </template>
 

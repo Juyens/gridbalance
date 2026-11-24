@@ -67,10 +67,7 @@ class Api:
       raise ValueError("radius must be between 1 and 100 km")
     try:
       if local:
-        with self._lock:
-          if self._dataset is None:
-            self._dataset = load_dataset(self._data_dir)
-        zone = self._dataset.zone(lat, lon, radius_km)
+        zone = self._local_zone(lat, lon, radius_km)
       else:
         zone = load_world_zone(lat, lon, radius_km)
     except NoDataError:
@@ -78,9 +75,39 @@ class Api:
     return self._open(build_zone_grid(zone))
 
   def load_case(self):
+    return self._open(self._case_grid())
+
+  def _case_grid(self):
     if self._case_path is None:
       raise RuntimeError("the MATPOWER case is unavailable")
-    return self._open(load_case(self._case_path))
+    return load_case(self._case_path)
+
+  def _local_zone(self, lat, lon, radius_km):
+    with self._lock:
+      if self._dataset is None:
+        self._dataset = load_dataset(self._data_dir)
+    return self._dataset.zone(lat, lon, radius_km)
+
+  def measure(self, place):
+    """Time a bundled benchmark without changing the currently open network."""
+    started = time.perf_counter()
+    if place is None:
+      zone_grid = self._case_grid()
+    else:
+      zone = self._local_zone(place["lat"], place["lon"], place["radiusKm"])
+      zone_grid = build_zone_grid(zone)
+    reinforcer = Reinforcer(zone_grid.grid)
+    ready = time.perf_counter()
+    design = reinforcer.design(Weights(1, 1, 1))
+    finished = time.perf_counter()
+    return {
+      "nodes": len(zone_grid.grid.buses),
+      "lines": len(zone_grid.grid.branches),
+      "prepareMs": (ready - started) * 1000,
+      "designMs": (finished - ready) * 1000,
+      "treeBridges": len(reinforcer.tree),
+      "designBridges": design.bridges,
+    }
 
   def _open(self, zone_grid):
     reinforcer = Reinforcer(zone_grid.grid)
