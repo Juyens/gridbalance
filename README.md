@@ -1,6 +1,6 @@
 # PwrGrid
 
-Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se busca cualquier lugar del Perú en un mapa y la app diseña la red eléctrica de esa zona.
+Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se puede analizar una zona en cualquier país con datos de OpenStreetMap.
 
 Trabajo del curso 1ACC0184 Complejidad Algorítmica (UPC, 2026-20).
 
@@ -40,7 +40,11 @@ Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
 uv run gridbalance
 ```
 
-Escribe una dirección o lugar en el buscador. Usa el control debajo del buscador para fijar el radio. En la barra superior, abre **Diseño** para ajustar las prioridades o **Resultados** para consultar las métricas y el elemento seleccionado.
+Escribe una dirección o lugar en el buscador, o mueve el mapa y pulsa **Analizar esta zona**. Debajo del buscador puedes escribir un radio de 1 a 100 km o usar **Automático**. **Diseño** ajusta las prioridades y **Resultados** compara el AEM, el diseño reforzado y todas las líneas candidatas.
+
+Pulsa **Mundo** para ver las líneas eléctricas y subestaciones cartografiadas por [Open Infrastructure Map](https://openinframap.org/about). Puedes explorar el mapa y acercarte a un punto antes de usar **Analizar esta zona**. Las tres comparaciones se calculan para la zona seleccionada.
+
+Busca **Polonia** o selecciona el marcador **MATPOWER case2383wp** para abrir la simulación histórica completa. El trazado del caso sobre el mapa es esquemático porque MATPOWER no incluye las coordenadas de sus nodos.
 
 ### Modo desarrollo
 
@@ -95,4 +99,4 @@ uv run tools/build_dataset.py peru-261122.osm.pbf data/peru
 
 OpenStreetMap no incluye demanda, capacidades ni costos: se estiman en `zone.py` (clase `Assumptions`), con las fuentes en [docs/sources.md](docs/sources.md).
 
-El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Ambos necesitan conexión a internet.
+El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Las búsquedas en Perú usan el extracto incluido. Las demás zonas se consultan en [Overpass](https://dev.overpass-api.de/overpass-doc/en/preface/commons.html) y dependen de la conexión y de la cobertura de OpenStreetMap. Se puede elegir otra instancia configurando `PWRGRID_OVERPASS_URL` con la URL del intérprete.

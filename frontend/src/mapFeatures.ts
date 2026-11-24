@@ -17,7 +17,7 @@ export interface FeatureCollection {
   features: Feature[]
 }
 
-const EARTH_KM_PER_DEGREE = 111.2
+const EARTH_RADIUS_KM = 6371.0088
 const CIRCLE_POINTS = 96
 
 const collection = (features: Feature[]): FeatureCollection => ({
@@ -108,15 +108,26 @@ export function existingFeatures(data: CaseData): FeatureCollection {
 }
 
 export function circlePoints({ lat, lon, radiusKm }: CaseData['zone']): Coordinates[] {
-  const dLat = radiusKm / EARTH_KM_PER_DEGREE
-  const dLon = dLat / Math.cos((lat * Math.PI) / 180)
+  if (radiusKm === null) return []
+  const radians = Math.PI / 180
+  const latitude = lat * radians
+  const angular = radiusKm / EARTH_RADIUS_KM
   return Array.from({ length: CIRCLE_POINTS + 1 }, (_, i) => {
-    const angle = (2 * Math.PI * i) / CIRCLE_POINTS
-    return [lon + dLon * Math.cos(angle), lat + dLat * Math.sin(angle)]
+    const bearing = (2 * Math.PI * i) / CIRCLE_POINTS
+    const nextLat = Math.asin(
+      Math.sin(latitude) * Math.cos(angular) +
+        Math.cos(latitude) * Math.sin(angular) * Math.cos(bearing),
+    )
+    const deltaLon = Math.atan2(
+      Math.sin(bearing) * Math.sin(angular) * Math.cos(latitude),
+      Math.cos(angular) - Math.sin(latitude) * Math.sin(nextLat),
+    )
+    return [lon + deltaLon / radians, nextLat / radians]
   })
 }
 
 export function circleFeature(zone: CaseData['zone']): FeatureCollection {
+  if (zone.radiusKm === null) return collection([])
   return collection([
     {
       type: 'Feature',

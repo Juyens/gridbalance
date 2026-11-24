@@ -97,7 +97,7 @@ function lineWidth(base: number): ExpressionSpecification {
     base * scale,
     ['case', ['>=', ['coalesce', ['get', 'kv'], 0], 60], 1.6, 1],
   ]
-  return ['interpolate', ['linear'], ['zoom'], 9, at(0.5), 13, at(1), 17, at(2)]
+  return ['interpolate', ['linear'], ['zoom'], 5, at(0.3), 9, at(0.5), 13, at(1), 17, at(2)]
 }
 
 function layers(colors: Colors): LayerSpecification[] {
@@ -319,5 +319,7 @@ export function addOverlay(map: MapLibreMap) {
     const ids = name === 'branches' ? { promoteId: 'index' } : {}
     map.addSource(name, { type: 'geojson', data: EMPTY, ...ids })
   }
-  for (const layer of layers(colors)) map.addLayer(layer)
+  const overlay = layers(colors)
+  for (const layer of overlay) map.addLayer(layer)
+  return overlay.map(({ id }) => id)
 }

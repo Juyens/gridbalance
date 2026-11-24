@@ -11,6 +11,7 @@ export interface Place {
   address: string
   center: LngLat
   bounds: [LngLat, LngLat] | null // south-west and north-east corners
+  source?: 'peru' | 'poland'
 }
 
 const example = (name: string, address: string, lat: number, lon: number): Place => ({
@@ -18,7 +19,16 @@ const example = (name: string, address: string, lat: number, lon: number): Place
   address,
   center: [lon, lat],
   bounds: null,
+  source: 'peru',
 })
+
+export const POLAND: Place = {
+  name: 'Polonia · Poland',
+  address: 'MATPOWER case2383wp',
+  center: [19.3, 52],
+  bounds: null,
+  source: 'poland',
+}
 
 // Shown before typing: zones of very different size.
 export const EXAMPLES: Place[] = [
@@ -27,6 +37,7 @@ export const EXAMPLES: Place[] = [
   example('Plaza de Armas', 'Cusco', -13.517, -71.9785),
   example('Plaza de Armas', 'Arequipa', -16.3988, -71.5369),
   example('Oxapampa', 'Pasco', -10.5776, -75.4026),
+  POLAND,
 ]
 
 interface PhotonFeature {
@@ -39,6 +50,7 @@ interface PhotonFeature {
     city?: string
     state?: string
     country?: string
+    countrycode?: string
     extent?: [number, number, number, number] // west, north, east, south
   }
 }
@@ -49,6 +61,7 @@ export async function searchPlaces(
   near: LngLat,
   signal: AbortSignal,
 ): Promise<Place[]> {
+  if (/^(polonia|poland|polska|case2383wp)$/i.test(query.trim())) return [POLAND]
   const url = new URL(PHOTON_URL)
   url.search = new URLSearchParams({
     q: query,
@@ -77,6 +90,7 @@ export function toPlace({ geometry, properties: p }: PhotonFeature): Place {
     name,
     address: [...parts].filter(Boolean).join(', '),
     center: geometry.coordinates,
+    ...(p.countrycode?.toUpperCase() === 'PE' ? { source: 'peru' } : {}),
     bounds: p.extent
       ? [
           [p.extent[0], p.extent[3]],

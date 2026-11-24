@@ -28,6 +28,7 @@ const {
 } = useGridDesign()
 
 const activePanel = ref<'controls' | 'results' | null>(null)
+const worldMode = ref(false)
 const panelClose = ref<HTMLButtonElement | null>(null)
 let panelTrigger: HTMLButtonElement | null = null
 
@@ -50,6 +51,14 @@ async function togglePanel(panel: 'controls' | 'results', trigger: HTMLButtonEle
 
 const selection = ref<Selection>(null)
 const replay = useReplay(caseData, design)
+watch(worldMode, (enabled) => {
+  if (enabled) {
+    activePanel.value = null
+    panelTrigger = null
+    selection.value = null
+    replay.close()
+  }
+})
 const replayFrame = replay.frame
 // Whole steps, so the panels only change when a line is complete.
 const replayStep = computed(() => (replayFrame.value ? Math.floor(replayFrame.value.steps) : null))
@@ -145,7 +154,8 @@ onMounted(start)
   <div class="app">
     <AppHeader
       :active-panel="activePanel"
-      :has-results="Boolean(caseData)"
+      :has-results="Boolean(caseData) && !worldMode"
+      :world-mode="worldMode"
       :dark-mode="darkMode"
       :theme-busy="themeBusy"
       :language-busy="languageBusy"
@@ -168,14 +178,16 @@ onMounted(start)
     <main class="layout">
       <GridMap
         v-model:radius="radiusKm"
+        v-model:world="worldMode"
         :case-data="caseData"
         :design="design"
         :frame="replayFrame"
         :weights="weights"
         :busy="loadingCase || designing"
+        :loading="loadingCase"
         :selection="selection"
         :dark-mode="darkMode"
-        @place="goTo($event.center[1], $event.center[0], $event.name)"
+        @place="goTo"
         @select="selection = $event"
         @error="error = $event"
       >
