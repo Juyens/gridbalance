@@ -11,7 +11,7 @@ from gridbalance.api import Api
 DEV_SERVER_URL = "http://localhost:5173"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_BUILD = REPO_ROOT / "frontend" / "dist" / "index.html"
-CASES_DIR = REPO_ROOT / "cases"
+DATA_DIR = REPO_ROOT / "data" / "peru"
 
 
 def main():
@@ -33,7 +33,7 @@ def main():
     )
 
   webview.create_window(
-    "GridBalance", url, js_api=Api(CASES_DIR), width=1280, height=800
+    "PwrGrid", url, js_api=Api(DATA_DIR), width=1280, height=800
   )
   webview.start(
     debug=args.dev,

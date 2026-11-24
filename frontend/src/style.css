@@ -1,6 +1,12 @@
-/* Hallmark · macrostructure: network workbench · tone: technical · anchor hue: green
- * pre-emit critique: P5 H4 E4 S5 R5 V4 */
 @import '../../tokens.css';
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
 
 :root {
   font-family: var(--font-ui);
@@ -76,4 +82,14 @@ body,
 #app {
   height: 100%;
   margin: 0;
+}
+
+* {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--surface);
 }

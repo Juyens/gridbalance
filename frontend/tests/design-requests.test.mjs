@@ -14,8 +14,7 @@ test('changed weights invalidate in-flight results while the next request is deb
   globalThis.window = {
     pywebview: {
       api: {
-        list_cases: async () => ['case.m'],
-        load_case: async () => ({ name: 'case' }),
+        load_zone: async () => ({ name: 'zone' }),
         design: () =>
           ++requests === 1
             ? Promise.resolve(initial)

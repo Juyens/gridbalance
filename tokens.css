@@ -1,46 +1,57 @@
-/* GridBalance: shared interface and network colours. */
+/* PwrGrid: shared interface and network colours. */
 :root {
   color-scheme: light;
-  --font-ui: "Segoe UI", system-ui, sans-serif;
-  --text: oklch(27% 0.025 250);
-  --muted: oklch(47% 0.02 250);
-  --border: oklch(89% 0.009 250);
-  --surface: oklch(100% 0 0);
-  --background: oklch(97% 0.005 250);
-  --accent: oklch(43% 0.085 175);
-  --accent-soft: oklch(95% 0.025 175);
-  --error-surface: oklch(96% 0.025 25);
-  --error-text: oklch(40% 0.15 25);
-  /* Cytoscape's colour parser requires sRGB values. */
-  --graph-tree: #7c8995;
-  --graph-added: #24745d;
-  --graph-bridge: #bc493c;
-  --graph-unused: #d5dce2;
-  --graph-kv400: #655184;
-  --graph-kv220: #956d31;
-  --graph-kv110: #427a9b;
-  --graph-low: #7c8995;
-  --graph-selected: #153c55;
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  --text: #182630;
+  --muted: #4e6070;
+  --border: #d4dee5;
+  --surface: #ffffff;
+  --background: #eef2f5;
+  --accent: #0d6b57;
+  --accent-soft: #e4f3ef;
+  --shadow: 0 4px 14px rgb(16 24 32 / 13%);
+  --error-surface: #fceceb;
+  --error-text: #892a27;
+  --objective-cost: #8d5109;
+  --objective-robustness: #215f9f;
+  --objective-supply: #0d6b57;
+  --graph-tree: #215f9f;
+  --graph-added: #087b60;
+  --graph-bridge: #ac3838;
+  --graph-unused: #748493;
+  --graph-existing: #7b4c9f;
+  --graph-source: #c56922;
+  --graph-plant: #aa3838;
+  --graph-load: #496f92;
+  --graph-selected: #a96308;
+  --graph-text: #182630;
+  --graph-halo: #ffffff;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --text: oklch(92% 0.01 250);
-  --muted: oklch(73% 0.015 250);
-  --border: oklch(35% 0.015 250);
-  --surface: oklch(23% 0.015 250);
-  --background: oklch(19% 0.015 250);
-  --accent: oklch(78% 0.09 175);
-  --accent-soft: oklch(30% 0.035 175);
-  --error-surface: oklch(29% 0.055 25);
-  --error-text: oklch(83% 0.09 25);
-  --graph-tree: #8a9aa8;
-  --graph-added: #86c8ad;
-  --graph-bridge: #f18c7f;
-  --graph-unused: #485662;
-  --graph-kv400: #b7a4dc;
-  --graph-kv220: #d5ae72;
-  --graph-kv110: #85b9d8;
-  --graph-low: #8a9aa8;
-  --graph-selected: #f4f8f6;
+  --text: #ecf2f5;
+  --muted: #a6b5c1;
+  --border: #2d3d4a;
+  --surface: #17232d;
+  --background: #101820;
+  --accent: #6ddfc1;
+  --accent-soft: #213d3a;
+  --shadow: 0 4px 16px rgb(0 0 0 / 36%);
+  --error-surface: #3a252b;
+  --error-text: #ffb5ad;
+  --objective-cost: #efb974;
+  --objective-robustness: #8abcf8;
+  --objective-supply: #6ddfc1;
+  --graph-tree: #8abcf8;
+  --graph-added: #6ddfc1;
+  --graph-bridge: #ff8a81;
+  --graph-unused: #8796a4;
+  --graph-existing: #c8a7e6;
+  --graph-source: #f4a364;
+  --graph-plant: #ff8a81;
+  --graph-load: #a0bad2;
+  --graph-selected: #f4c66b;
+  --graph-text: #ecf2f5;
+  --graph-halo: #101820;
 }

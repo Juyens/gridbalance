@@ -1,15 +1,11 @@
 import random
-from pathlib import Path
 
 import pytest
 
 from gridbalance.bridges import find_bridges
 from gridbalance.flow import max_flow
-from gridbalance.grid import load_grid
 from gridbalance.mst import kruskal
 from gridbalance.reinforcement import BridgeTracker, Reinforcer, Weights
-
-CASES_DIR = Path(__file__).resolve().parents[1] / "cases"
 
 
 def random_connected_grid(make_grid, rng):
@@ -102,28 +98,28 @@ def test_steps_trace_the_design(make_grid):
 
 
 @pytest.fixture(scope="module")
-def polish_reinforcer():
-    return Reinforcer(load_grid(CASES_DIR / "case2383wp.m"))
+def upc_reinforcer(upc_grid):
+    return Reinforcer(upc_grid)
 
 
-def test_polish_grid_trade_off(polish_reinforcer):
-    grid = polish_reinforcer.grid
-    cheap = polish_reinforcer.design(Weights(cost=0.6, robustness=0.2, supply=0.2))
-    balanced = polish_reinforcer.design(Weights(1, 1, 1))
-    robust = polish_reinforcer.design(Weights(cost=0, robustness=1, supply=1))
+def test_upc_trade_off(upc_reinforcer):
+    grid = upc_reinforcer.grid
+    cheap = upc_reinforcer.design(Weights(cost=0.6, robustness=0.2, supply=0.2))
+    balanced = upc_reinforcer.design(Weights(1, 1, 1))
+    robust = upc_reinforcer.design(Weights(cost=0, robustness=1, supply=1))
 
     assert cheap.cost < balanced.cost < robust.cost < grid.total_cost()
     assert cheap.bridges > balanced.bridges > robust.bridges
-    # With no weight on cost, it matches the robustness and supply of the
-    # original grid while still being cheaper.
-    assert robust.bridges == len(find_bridges(grid)) == 644
-    assert robust.supplied_mw == pytest.approx(sum(grid.load_mw()))
+    # With no weight on cost, it is as robust and supplies as much as building
+    # every possible line, while still being cheaper.
+    assert robust.bridges == len(find_bridges(grid))
+    assert robust.supplied_mw == pytest.approx(max_flow(grid))
     for design in (cheap, balanced, robust):
         assert design.bridges == len(find_bridges(grid, design.branches))
 
 
-def test_same_weights_give_the_same_design(polish_reinforcer):
-    first = polish_reinforcer.design(Weights(1, 1, 1))
-    second = polish_reinforcer.design(Weights(1, 1, 1))
+def test_same_weights_give_the_same_design(upc_reinforcer):
+    first = upc_reinforcer.design(Weights(1, 1, 1))
+    second = upc_reinforcer.design(Weights(1, 1, 1))
 
     assert first == second

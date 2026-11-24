@@ -41,11 +41,12 @@ class Weights:
 class Step:
   """Network totals right after the greedy added a branch."""
 
-  def __init__(self, branch, cost, bridges, supplied_mw):
+  def __init__(self, branch, cost, bridges, supplied_mw, removed_bridges):
     self.branch = branch
     self.cost = cost
     self.bridges = bridges
     self.supplied_mw = supplied_mw
+    self.removed_bridges = removed_bridges  #tree branches that stopped being bridges
 
   def __eq__(self, other):
     return (
@@ -54,6 +55,7 @@ class Step:
       and self.cost == other.cost
       and self.bridges == other.bridges
       and self.supplied_mw == other.supplied_mw
+      and self.removed_bridges == other.removed_bridges
     )
 
 
@@ -92,11 +94,12 @@ class BridgeTracker:
     G = [[] for _ in range(n)]  # noqa: N806
     for index in tree:
       branch = grid.branches[index]
-      G[branch.from_bus].append(branch.to_bus)
-      G[branch.to_bus].append(branch.from_bus)
+      G[branch.from_bus].append((branch.to_bus, index))
+      G[branch.to_bus].append((branch.from_bus, index))
 
     #Root every tree of the forest with BFS to get parent and depth.
     self.parent = [NO_PARENT] * n
+    self.parent_branch = [NO_PARENT] * n
     self.depth = [0] * n
     visited = [False] * n
     for root in range(n):
@@ -106,10 +109,11 @@ class BridgeTracker:
       queue = deque([root])
       while queue:
         u = queue.popleft()
-        for v in G[u]:
+        for v, index in G[u]:
           if not visited[v]:
             visited[v] = True
             self.parent[v] = u
+            self.parent_branch[v] = index
             self.depth[v] = self.depth[u] + 1
             queue.append(v)
 
@@ -121,8 +125,11 @@ class BridgeTracker:
   def group_top(self, bus):
     return self.top[find(self.s, bus)]
 
-  def walk(self, u, v, remove):
-    """Bridges on the tree path from u to v; remove marks them as covered."""
+  def walk(self, u, v, removed=None):
+    """Bridges on the tree path from u to v.
+
+    With a list, the bridges are added to it and marked as covered.
+    """
     x, y = self.group_top(u), self.group_top(v)
     total = 0
     while x != y:
@@ -131,20 +138,23 @@ class BridgeTracker:
         x, y = y, x
       parent = self.parent[x]
       total += 1
-      if remove:
+      if removed is not None:
+        removed.append(self.parent_branch[x])
         parent_top = self.group_top(parent)
         union(self.s, self.rank, x, parent)
         self.top[find(self.s, x)] = parent_top
       x = self.group_top(parent)
-    if remove:
+    if removed is not None:
       self.count -= total
     return total
 
   def bridges_on_path(self, u, v):
-    return self.walk(u, v, False)
+    return self.walk(u, v)
 
   def remove_bridges_on_path(self, u, v):
-    return self.walk(u, v, True)
+    removed = []
+    self.walk(u, v, removed)
+    return removed
 
 
 class Reinforcer:
@@ -203,13 +213,13 @@ class Reinforcer:
         break
 
       branch = self.grid.branches[best]
-      tracker.remove_bridges_on_path(branch.from_bus, branch.to_bus)
+      removed = tracker.remove_bridges_on_path(branch.from_bus, branch.to_bus)
       network.add_branch(best)
       network.max_flow()
       cost += branch.cost
       remaining.remove(best)
       added.append(best)
-      steps.append(Step(best, cost, tracker.count, network.value))
+      steps.append(Step(best, cost, tracker.count, network.value, sorted(removed)))
 
     return Design(
       tree=tuple(self.tree),

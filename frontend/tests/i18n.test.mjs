@@ -18,10 +18,10 @@ test('both languages cover the same messages and interpolation values', () => {
 test('translations react to language changes and interpolate formatted values', () => {
   locale.value = 'es'
   assert.equal(t('cost'), 'Costo')
-  assert.equal(t('networkSize', { buses: '2.383', lines: '2.896' }), '2.383 barras / 2.896 líneas')
+  assert.equal(t('networkSize', { buses: '2.383', lines: '2.896' }), '2.383 nodos / 2.896 líneas posibles')
   locale.value = 'en'
   assert.equal(t('cost'), 'Cost')
-  assert.equal(t('networkSize', { buses: '2,383', lines: '2,896' }), '2,383 buses / 2,896 lines')
+  assert.equal(t('networkSize', { buses: '2,383', lines: '2,896' }), '2,383 nodes / 2,896 possible lines')
 })
 
 test('numbers, decimals and percentages follow the selected language', () => {

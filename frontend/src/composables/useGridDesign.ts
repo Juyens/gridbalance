@@ -1,20 +1,26 @@
-// App state: the loaded case, the current weights and the design they produce.
+// App state: the loaded zone, the current weights and the design they produce.
 
 import { ref, shallowRef, watch } from 'vue'
 import { errorMessage, getApi } from '../api'
-import type { CaseData, DesignData, Position, Weights } from '../types'
+import type { CaseData, DesignData, Weights } from '../types'
 import { PRESETS } from '../weights'
 
 // Wait until the sliders stop moving before asking Python for a new design.
 const DEBOUNCE_MS = 250
 
+// UPC San Miguel, Lima.
+const START = { lat: -12.0764, lon: -77.0934, name: 'UPC San Miguel' }
+
 export function useGridDesign() {
-  // shallowRef: the case holds thousands of buses and branches that never change,
+  // shallowRef: the zone holds thousands of buses and branches that never change,
   // so Vue only needs to notice when the whole object is replaced.
   const caseData = shallowRef<CaseData | null>(null)
   const design = shallowRef<DesignData | null>(null)
   const weights = ref<Weights>({ ...PRESETS.Balanced! })
-  const cases = ref<string[]>([])
+  const point = ref(START)
+  const zoneName = ref(START.name)
+  const radiusKm = ref<number | null>(null) // null lets Python choose it
+  const noData = ref(false)
   const loadingCase = ref(false)
   const designing = ref(false)
   const error = ref<string | null>(null)
@@ -39,45 +45,40 @@ export function useGridDesign() {
     }
   }
 
-  async function load(loader: () => Promise<CaseData | null>) {
+  // Like designs, only the answer to the latest zone request is kept.
+  let latestZone = 0
+
+  async function loadZone() {
+    const request = ++latestZone
+    const { lat, lon, name } = point.value
+    latestRequest += 1 // a design still on its way belongs to the previous zone
     loadingCase.value = true
+    noData.value = false
     error.value = null
     try {
-      const data = await loader()
-      if (!data) return // dialog cancelled
+      const data = await (await getApi()).load_zone(lat, lon, radiusKm.value)
+      if (request !== latestZone) return
+      if (!data) {
+        noData.value = true
+        return
+      }
       design.value = null
       caseData.value = data
+      zoneName.value = name
       await requestDesign()
     } catch (reason) {
-      error.value = errorMessage(reason)
+      if (request === latestZone) error.value = errorMessage(reason)
     } finally {
-      loadingCase.value = false
+      if (request === latestZone) loadingCase.value = false
     }
   }
 
-  async function loadCase(fileName: string) {
-    const api = await getApi()
-    await load(() => api.load_case(fileName))
+  async function goTo(lat: number, lon: number, name: string) {
+    point.value = { lat, lon, name }
+    await loadZone()
   }
 
-  async function openCase() {
-    const api = await getApi()
-    await load(() => api.open_case())
-  }
-
-  async function saveLayout(positions: Position[]) {
-    try {
-      await (await getApi()).save_layout(positions)
-    } catch (reason) {
-      error.value = errorMessage(reason)
-    }
-  }
-
-  async function start() {
-    const api = await getApi()
-    cases.value = await api.list_cases()
-    if (cases.value.length > 0) await loadCase(cases.value[0]!)
-  }
+  watch(radiusKm, loadZone)
 
   watch(weights, () => {
     latestRequest += 1
@@ -90,13 +91,13 @@ export function useGridDesign() {
     caseData,
     design,
     weights,
-    cases,
+    zoneName,
+    radiusKm,
+    noData,
     loadingCase,
     designing,
     error,
-    loadCase,
-    openCase,
-    saveLayout,
-    start,
+    goTo,
+    start: loadZone,
   }
 }

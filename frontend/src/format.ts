@@ -15,6 +15,12 @@ export function formatPercent(part: number, total: number): string {
     : '—'
 }
 
-export function unitSymbol(costUnit: string): string {
-  return costUnit === 'ohm' ? 'Ω' : costUnit
+// Costs come in thousands of dollars: 1036 reads as "1,04 M US$".
+export function formatMoney(thousands: number): string {
+  return new Intl.NumberFormat(locale.value, {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumSignificantDigits: 3,
+  }).format(thousands * 1000)
 }

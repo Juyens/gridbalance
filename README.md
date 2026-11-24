@@ -1,6 +1,6 @@
-# GridBalance
+# PwrGrid
 
-Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Lee cualquier caso en formato MATPOWER (`.m`).
+Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se busca cualquier lugar del Perú en un mapa y la app diseña la red eléctrica de esa zona.
 
 Trabajo del curso 1ACC0184 Complejidad Algorítmica (UPC, 2026-20).
 
@@ -10,7 +10,7 @@ Trabajo del curso 1ACC0184 Complejidad Algorítmica (UPC, 2026-20).
 |---|---|
 | Backend | Python 3.13, algoritmos implementados sin librerías de grafos |
 | Ventana | pywebview (usa WebView2, incluido en Windows 11) |
-| Frontend | Vue 3, TypeScript, Vite, Cytoscape.js con fcose |
+| Frontend | Vue 3, TypeScript, Vite, MapLibre GL JS |
 | Calidad | uv, ruff, pytest, ESLint, Prettier |
 
 ## Requisitos
@@ -28,6 +28,8 @@ npm install --prefix frontend
 npm run build --prefix frontend
 ```
 
+Después de cada `git pull` repite estos tres comandos: la app abre el build de `frontend/dist`, que no se sube al repositorio, así que sin recompilar se sigue viendo la interfaz anterior.
+
 `visualizacion.py` es opcional y solo sirve para redes pequeñas. Para dibujar hace
 falta instalar Graphviz en el sistema y tener `dot` en el `PATH`; el paquete de
 Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
@@ -38,7 +40,7 @@ Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
 uv run gridbalance
 ```
 
-La primera vez que se abre una red se calcula la posición de los nodos y se guarda en `cases/<caso>.layout.json`; las siguientes veces abre al instante.
+Escribe una dirección o lugar en el buscador. Usa el control debajo del buscador para fijar el radio. En la barra superior, abre **Diseño** para ajustar las prioridades o **Resultados** para consultar las métricas y el elemento seleccionado.
 
 ### Modo desarrollo
 
@@ -65,9 +67,11 @@ npm run lint --prefix frontend
 ## Estructura
 
 ```
-cases/                  redes MATPOWER (.m) y layouts guardados
+data/peru/              nodos y líneas del Perú (CSV)
+tools/build_dataset.py  genera data/ desde un extracto de OpenStreetMap
 src/gridbalance/
-  matpower.py           lector de archivos .m
+  osm.py                carga los datos y busca una zona
+  zone.py               convierte la zona en el grafo (demanda, líneas, costos)
   grid.py               modelo de la red (barras, líneas, generadores)
   ufds.py               Union-Find
   mst.py                Kruskal
@@ -83,4 +87,12 @@ tests/                  pruebas con pytest
 
 ## Datos
 
-`cases/case2383wp.m` es la red de transmisión de Polonia (2383 barras, 2896 ramas), tomada del [repositorio de MATPOWER](https://github.com/MATPOWER/matpower/blob/master/data/case2383wp.m). Se usa con fines académicos.
+`data/peru` contiene las subestaciones, centrales, localidades y líneas eléctricas del Perú, extraídas de [OpenStreetMap](https://www.openstreetmap.org/copyright) (licencia ODbL) con el extracto `peru-261122.osm.pbf` de [Geofabrik](https://download.geofabrik.de/south-america/peru.html). Para volver a generarlo, descarga el extracto y ejecuta:
+
+```powershell
+uv run tools/build_dataset.py peru-261122.osm.pbf data/peru
+```
+
+OpenStreetMap no incluye demanda, capacidades ni costos: se estiman en `zone.py` (clase `Assumptions`), con las fuentes en [docs/sources.md](docs/sources.md).
+
+El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Ambos necesitan conexión a internet.
