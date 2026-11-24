@@ -2,7 +2,7 @@
 
 import { ref, shallowRef, watch } from 'vue'
 import { errorMessage, getApi } from '../api'
-import { POLAND, type Place } from '../places'
+import type { Place } from '../places'
 import type { CaseData, DesignData, Weights } from '../types'
 import { PRESETS } from '../weights'
 
@@ -15,6 +15,7 @@ const START: Place = {
   address: 'Lima',
   center: [-77.0934, -12.0764],
   bounds: null,
+  source: 'peru',
 }
 
 export function useGridDesign() {
@@ -23,7 +24,7 @@ export function useGridDesign() {
   const caseData = shallowRef<CaseData | null>(null)
   const design = shallowRef<DesignData | null>(null)
   const weights = ref<Weights>({ ...PRESETS.Balanced! })
-  const place = ref(START)
+  const point = ref(START)
   const zoneName = ref(START.name)
   const radiusKm = ref<number | null>(null) // null lets Python choose it
   const noData = ref(false)
@@ -37,12 +38,13 @@ export function useGridDesign() {
   let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
   async function requestDesign() {
-    if (!caseData.value) return
+    if (!caseData.value || loadingCase.value) return
+    const caseId = caseData.value.caseId
     const request = ++latestRequest
     designing.value = true
     error.value = null
     try {
-      const result = await (await getApi()).design({ ...weights.value })
+      const result = await (await getApi()).design({ ...weights.value }, caseId)
       if (request === latestRequest) design.value = result
     } catch (reason) {
       if (request === latestRequest) error.value = errorMessage(reason)
@@ -51,50 +53,65 @@ export function useGridDesign() {
     }
   }
 
-  // Like designs, only the answer to the latest zone request is kept.
+  // Serialize loads because they set the active backend graph for design().
   let latestZone = 0
+  let pendingZone = Promise.resolve()
 
-  async function loadZone() {
+  function loadZone() {
     const request = ++latestZone
-    const { center, isCase, name } = place.value
+    const {
+      center: [lon, lat],
+      name,
+      source,
+    } = point.value
+    const radius = radiusKm.value
     latestRequest += 1 // a design still on its way belongs to the previous zone
+    clearTimeout(debounceTimer)
     loadingCase.value = true
+    designing.value = false
     noData.value = false
     error.value = null
-    try {
-      const api = await getApi()
-      const data = isCase
-        ? await api.load_case()
-        : await api.load_zone(center[1], center[0], radiusKm.value)
+    pendingZone = pendingZone.then(async () => {
       if (request !== latestZone) return
-      if (!data) {
-        noData.value = true
+      try {
+        const api = await getApi()
+        const data =
+          source === 'poland'
+            ? await api.load_case()
+            : await api.load_zone(lat, lon, radius, source === 'peru')
+        if (request !== latestZone) return
+        if (!data) {
+          noData.value = true
+          return
+        }
+        design.value = null
+        caseData.value = data
+        zoneName.value = name
+      } catch (reason) {
+        if (request === latestZone) error.value = errorMessage(reason)
         return
+      } finally {
+        if (request === latestZone) loadingCase.value = false
       }
-      design.value = null
-      caseData.value = data
-      zoneName.value = isCase ? `${POLAND.name} (${POLAND.address})` : name
       await requestDesign()
-    } catch (reason) {
-      if (request === latestZone) error.value = errorMessage(reason)
-    } finally {
-      if (request === latestZone) loadingCase.value = false
+    })
+    return pendingZone
+  }
+
+  function goTo(place: Place, radius: number | null = radiusKm.value) {
+    point.value = place
+    if (place.source !== 'poland' && radius !== radiusKm.value) {
+      radiusKm.value = radius
+      return pendingZone
     }
+    return loadZone()
   }
 
-  // Without a radius, the zone keeps the one chosen before.
-  async function goTo(target: Place, radius: number | null = radiusKm.value) {
-    place.value = target
-    // Changing the radius already loads the zone.
-    if (radius !== radiusKm.value) radiusKm.value = radius
-    else await loadZone()
-  }
-
-  watch(radiusKm, loadZone)
+  watch(radiusKm, loadZone, { flush: 'sync' })
 
   watch(weights, () => {
     latestRequest += 1
-    designing.value = caseData.value !== null
+    designing.value = caseData.value !== null && !loadingCase.value
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(requestDesign, DEBOUNCE_MS)
   })

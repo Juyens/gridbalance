@@ -333,5 +333,7 @@ export function addOverlay(map: MapLibreMap) {
     const ids = name === 'branches' ? { promoteId: 'index' } : {}
     map.addSource(name, { type: 'geojson', data: EMPTY, ...ids })
   }
-  for (const layer of layers(colors)) map.addLayer(layer)
+  const overlay = layers(colors)
+  for (const layer of overlay) map.addLayer(layer)
+  return overlay.map(({ id }) => id)
 }

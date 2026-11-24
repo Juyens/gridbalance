@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { getApi } from './api'
 import AppHeader from './components/AppHeader.vue'
 import GridMap from './components/GridMap.vue'
@@ -12,6 +12,7 @@ import { designAtStep } from './replay'
 import { useGridDesign } from './composables/useGridDesign'
 import { useReplay } from './composables/useReplay'
 import { locale, t, type Locale, type MessageKey } from './i18n'
+import type { Place } from './places'
 import type { Selection } from './types'
 
 const {
@@ -28,10 +29,44 @@ const {
   start,
 } = useGridDesign()
 
-const panelsHidden = ref(false)
+const activePanel = ref<'controls' | 'results' | null>(null)
+const worldMode = ref(false)
 const scaleDialog = ref<InstanceType<typeof ScaleDialog>>()
+const panelClose = ref<HTMLButtonElement | null>(null)
+let panelTrigger: HTMLButtonElement | null = null
+
+function closePanel() {
+  activePanel.value = null
+  panelTrigger?.focus()
+  panelTrigger = null
+}
+
+function openScalePlace(place: Place, radiusKm: number | null) {
+  worldMode.value = false
+  return goTo(place, radiusKm)
+}
+
+async function togglePanel(panel: 'controls' | 'results', trigger: HTMLButtonElement) {
+  if (activePanel.value === panel) {
+    closePanel()
+    return
+  }
+  panelTrigger = trigger
+  activePanel.value = panel
+  await nextTick()
+  panelClose.value?.focus()
+}
+
 const selection = ref<Selection>(null)
 const replay = useReplay(caseData, design)
+watch(worldMode, (enabled) => {
+  if (enabled) {
+    activePanel.value = null
+    panelTrigger = null
+    selection.value = null
+    replay.close()
+  }
+})
 const replayFrame = replay.frame
 // Whole steps, so the panels only change when a line is complete.
 const replayStep = computed(() => (replayFrame.value ? Math.floor(replayFrame.value.steps) : null))
@@ -126,12 +161,14 @@ onMounted(start)
 <template>
   <div class="app">
     <AppHeader
-      :panels-hidden="panelsHidden"
+      :active-panel="activePanel"
+      :has-results="Boolean(caseData) && !worldMode"
+      :world-mode="worldMode"
       :dark-mode="darkMode"
       :theme-busy="themeBusy"
       :language-busy="languageBusy"
       @toggle-theme="toggleTheme"
-      @toggle-panels="panelsHidden = !panelsHidden"
+      @toggle-panel="togglePanel"
       @scale="scaleDialog?.show()"
       @language="changeLanguage"
     />
@@ -147,21 +184,19 @@ onMounted(start)
     <p v-if="themeError" class="error" role="alert">{{ t(themeError) }}</p>
     <p v-if="languageError" class="error" role="alert">{{ t(languageError) }}</p>
 
-    <main class="layout" :class="{ wide: panelsHidden }">
-      <aside v-show="!panelsHidden" class="sidebar controls" :aria-label="t('controls')">
-        <WeightPanel v-model="weights" />
-      </aside>
-
+    <main class="layout">
       <GridMap
         v-model:radius="radiusKm"
+        v-model:world="worldMode"
         :case-data="caseData"
         :design="design"
         :frame="replayFrame"
         :weights="weights"
         :busy="loadingCase || designing"
+        :loading="loadingCase"
         :selection="selection"
         :dark-mode="darkMode"
-        @place="goTo($event)"
+        @place="goTo"
         @select="selection = $event"
         @error="error = $event"
       >
@@ -177,24 +212,41 @@ onMounted(start)
       </GridMap>
 
       <aside
-        v-if="caseData"
-        v-show="!panelsHidden"
-        class="sidebar results"
-        :aria-label="t('results')"
+        v-if="activePanel"
+        id="workspace-panel"
+        class="tool-panel"
+        aria-labelledby="panel-title"
+        @keydown.esc="closePanel"
       >
-        <MetricsPanel
-          :case-data="caseData"
-          :design="displayedDesign"
-          :designing="designing"
-          :step="replayStep"
-          :building="building"
-          :zone-name="zoneName"
-        />
-        <SelectionDetails :case-data="caseData" :design="displayedDesign" :selection="selection" />
+        <div class="panel-bar">
+          <h2 id="panel-title">{{ t(activePanel) }}</h2>
+          <button ref="panelClose" type="button" :aria-label="t('closePanel')" @click="closePanel">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="m5 5 10 10M15 5 5 15" />
+            </svg>
+          </button>
+        </div>
+        <div :key="activePanel" class="panel-content">
+          <WeightPanel v-if="activePanel === 'controls'" v-model="weights" />
+          <template v-else-if="caseData">
+            <MetricsPanel
+              :case-data="caseData"
+              :design="displayedDesign"
+              :designing="designing"
+              :step="replayStep"
+              :building="building"
+              :zone-name="zoneName"
+            />
+            <SelectionDetails
+              :case-data="caseData"
+              :design="displayedDesign"
+              :selection="selection"
+            />
+          </template>
+        </div>
       </aside>
     </main>
-
-    <ScaleDialog ref="scaleDialog" @open="(place, radius) => goTo(place, radius)" />
+    <ScaleDialog ref="scaleDialog" @open="openScalePlace" />
   </div>
 </template>
 
@@ -213,64 +265,78 @@ onMounted(start)
 }
 
 .layout {
+  position: relative;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 324px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
 
-.layout.wide {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.sidebar {
+.tool-panel {
+  position: absolute;
+  inset-block-start: 62px;
+  inset-inline-end: 12px;
+  z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 18px 20px;
+  width: min(350px, calc(100% - 24px));
+  max-height: calc(100% - 82px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
-.controls {
-  border-right: 1px solid var(--border);
+.panel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 6px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.results {
-  border-left: 1px solid var(--border);
+.panel-bar h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-@media (max-width: 1100px) {
-  .layout:not(.wide) {
-    grid-template-columns: 240px minmax(0, 1fr) 288px;
-  }
-  .sidebar {
-    padding: 20px 16px;
-  }
+.panel-bar button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+}
+
+.panel-bar svg {
+  width: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
 }
 
 @media (max-width: 900px) {
-  .app {
-    height: auto;
-    min-height: 100%;
-  }
-  .layout {
-    display: flex;
-    flex-direction: column;
-  }
-  .sidebar {
-    overflow: visible;
-    padding: 20px;
-  }
-  .controls {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .results {
-    border-left: 0;
-    border-top: 1px solid var(--border);
+  .tool-panel {
+    inset-block-start: auto;
+    inset-block-end: 20px;
+    max-height: 65%;
   }
 }
 </style>

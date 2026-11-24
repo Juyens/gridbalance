@@ -123,7 +123,14 @@ def distance_km(lat1, lon1, lat2, lon2):
   half_lat = math.sin((phi2 - phi1) / 2)
   half_lon = math.sin(math.radians(lon2 - lon1) / 2)
   h = half_lat**2 + math.cos(phi1) * math.cos(phi2) * half_lon**2
-  return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(h))
+  return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(min(1.0, h)))
+
+
+def longitude_near(lon, reference):
+  """Use the same longitude copy as the center across the antimeridian."""
+  if abs(lon - reference) <= 180:
+    return lon
+  return reference + (lon - reference + 180) % 360 - 180
 
 
 def distance_within(lat1, lon1, lat2, lon2, limit_km):

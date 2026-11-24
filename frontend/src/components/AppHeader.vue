@@ -2,7 +2,9 @@
 import { locale, t, type Locale } from '../i18n'
 
 defineProps<{
-  panelsHidden: boolean
+  activePanel: 'controls' | 'results' | null
+  hasResults: boolean
+  worldMode: boolean
   darkMode: boolean
   themeBusy: boolean
   languageBusy: boolean
@@ -10,7 +12,7 @@ defineProps<{
 
 const emit = defineEmits<{
   toggleTheme: []
-  togglePanels: []
+  togglePanel: [panel: 'controls' | 'results', trigger: HTMLButtonElement]
   scale: []
   language: [language: Locale]
 }>()
@@ -22,24 +24,38 @@ function onLanguageChange(event: Event) {
 
 <template>
   <header class="app-header">
-    <h1><img src="/favicon.svg" width="28" height="28" alt="" />GridBalance</h1>
-    <button type="button" class="scale" @click="emit('scale')">
+    <h1><img src="/favicon.svg" width="28" height="28" alt="" />PwrGrid</h1>
+    <button type="button" class="tool-button" @click="emit('scale')">
       <svg viewBox="0 0 20 20" aria-hidden="true">
         <path d="M3 17V12M8 17V9M13 17V6M18 17V3" />
       </svg>
       {{ t('scale') }}
     </button>
     <button
-      class="icon-button"
+      class="tool-button"
       type="button"
-      :aria-label="t('hidePanels')"
-      :title="t('hidePanels')"
-      :aria-pressed="panelsHidden"
-      @click="emit('togglePanels')"
+      :disabled="worldMode"
+      :aria-expanded="activePanel === 'controls'"
+      :aria-controls="activePanel === 'controls' ? 'workspace-panel' : undefined"
+      @click="emit('togglePanel', 'controls', $event.currentTarget as HTMLButtonElement)"
     >
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" />
+        <path d="M3 5h5m4 0h5M3 10h9m4 0h1M3 15h2m4 0h8M8 3v4m4 1v4m-7 1v4" />
       </svg>
+      {{ t('controls') }}
+    </button>
+    <button
+      class="tool-button"
+      type="button"
+      :disabled="!hasResults"
+      :aria-expanded="activePanel === 'results'"
+      :aria-controls="activePanel === 'results' ? 'workspace-panel' : undefined"
+      @click="emit('togglePanel', 'results', $event.currentTarget as HTMLButtonElement)"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 3v14h14M7 13v-3m4 3V6m4 7V4" />
+      </svg>
+      {{ t('results') }}
     </button>
     <button
       class="icon-button"
@@ -74,9 +90,9 @@ function onLanguageChange(event: Event) {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-height: 52px;
-  padding: 8px 20px;
+  padding: 8px 12px;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -84,9 +100,9 @@ function onLanguageChange(event: Event) {
 
 h1 {
   margin: 0 auto 0 0;
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.5px;
+  font-size: 19px;
+  font-weight: 675;
+  letter-spacing: -0.035em;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -121,14 +137,13 @@ button {
   padding: 0;
 }
 
-.scale {
-  display: flex;
+.tool-button {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.scale svg,
-.icon-button svg {
+button svg {
   width: 18px;
   height: 18px;
   fill: none;
@@ -138,8 +153,10 @@ button {
   stroke-linejoin: round;
 }
 
-.icon-button[aria-pressed='true'] {
+.icon-button[aria-pressed='true'],
+.tool-button[aria-expanded='true'] {
   border-color: var(--accent);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 

@@ -47,7 +47,9 @@ async function measure() {
     // One by one, so each row appears as soon as it is ready.
     for (const row of rows.value) {
       const [lon, lat] = row.place.center
-      row.result = await api.measure(row.place.isCase ? null : { lat, lon, radiusKm: row.radiusKm })
+      row.result = await api.measure(
+        row.place.source === 'poland' ? null : { lat, lon, radiusKm: row.radiusKm },
+      )
     }
   } catch (reason) {
     error.value = errorMessage(reason)
@@ -101,7 +103,7 @@ defineExpose({ show })
             <th scope="row">
               {{ row.place.name }}
               <small>
-                {{ row.place.isCase ? row.place.address : `${row.radiusKm ?? ''} km` }}
+                {{ row.place.source === 'poland' ? row.place.address : `${row.radiusKm} km` }}
               </small>
             </th>
             <template v-if="row.result">

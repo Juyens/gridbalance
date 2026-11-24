@@ -1,6 +1,6 @@
-# GridBalance
+# PwrGrid
 
-Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se busca cualquier lugar del Perú en un mapa y la app diseña la red eléctrica de esa zona.
+Aplicación de escritorio para diseñar redes eléctricas con algoritmos sobre grafos. Parte del árbol de expansión mínima (Kruskal) y lo refuerza con un algoritmo voraz según tres pesos configurables en vivo: costo, robustez (puentes, Tarjan) y abastecimiento (flujo máximo, Edmonds-Karp). Se puede analizar una zona en cualquier país con datos de OpenStreetMap.
 
 Trabajo del curso 1ACC0184 Complejidad Algorítmica (UPC, 2026-20).
 
@@ -40,7 +40,13 @@ Python `graphviz` por sí solo no basta. En Google Colab ya viene instalado.
 uv run gridbalance
 ```
 
-Escribe una dirección o lugar en el buscador. El radio de la zona se elige solo, o se fija en el panel izquierdo.
+Escribe una dirección o lugar en el buscador, o mueve el mapa y pulsa **Analizar esta zona**. Debajo del buscador puedes escribir un radio de 1 a 100 km o usar **Automático**. **Diseño** ajusta las prioridades y **Resultados** compara el AEM, el diseño reforzado y todas las líneas candidatas.
+
+Pulsa **Mundo** para ver las líneas eléctricas y subestaciones cartografiadas por [Open Infrastructure Map](https://openinframap.org/about). Puedes explorar el mapa y acercarte a un punto antes de usar **Analizar esta zona**. Las tres comparaciones se calculan para la zona seleccionada.
+
+Busca **Polonia** o selecciona el marcador **MATPOWER case2383wp** para abrir la simulación histórica completa. El trazado del caso sobre el mapa es esquemático porque MATPOWER no incluye las coordenadas de sus nodos.
+
+Abre **Escala** para comparar el tamaño de distintas redes y sus tiempos de cálculo en tu computadora.
 
 ### Modo desarrollo
 
@@ -67,14 +73,11 @@ npm run lint --prefix frontend
 ## Estructura
 
 ```
-cases/                  red de Polonia (MATPOWER) y su dibujo
 data/peru/              nodos y líneas del Perú (CSV)
 tools/build_dataset.py  genera data/ desde un extracto de OpenStreetMap
 src/gridbalance/
   osm.py                carga los datos y busca una zona
   zone.py               convierte la zona en el grafo (demanda, líneas, costos)
-  matpower.py           lector de archivos .m
-  case.py               red de Polonia, ubicada sobre el mapa
   grid.py               modelo de la red (barras, líneas, generadores)
   ufds.py               Union-Find
   mst.py                Kruskal
@@ -98,6 +101,4 @@ uv run tools/build_dataset.py peru-261122.osm.pbf data/peru
 
 OpenStreetMap no incluye demanda, capacidades ni costos: se estiman en `zone.py` (clase `Assumptions`), con las fuentes en [docs/sources.md](docs/sources.md).
 
-`cases/case2383wp.m` es la red de transmisión de Polonia (2383 barras, 2896 ramas), tomada del [repositorio de MATPOWER](https://github.com/MATPOWER/matpower/blob/master/data/case2383wp.m). Se usa con fines académicos. Se abre al buscar cualquier lugar de Polonia. El caso no publica coordenadas, así que su ubicación en el mapa es referencial: es el dibujo del grafo acomodado sobre el país. Sus demandas, capacidades y costos (reactancias en ohmios) sí son los del caso.
-
-El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Ambos necesitan conexión a internet.
+El mapa es de [OpenFreeMap](https://openfreemap.org/) y el buscador de lugares de [Photon](https://photon.komoot.io/). Las búsquedas en Perú usan el extracto incluido. Las demás zonas se consultan en [Overpass](https://dev.overpass-api.de/overpass-doc/en/preface/commons.html) y dependen de la conexión y de la cobertura de OpenStreetMap. Se puede elegir otra instancia configurando `PWRGRID_OVERPASS_URL` con la URL del intérprete.

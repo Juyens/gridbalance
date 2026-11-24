@@ -7,7 +7,7 @@ estimates them. Every estimate is in Assumptions.
 import math
 
 from gridbalance.grid import Branch, Bus, Generator, Grid
-from gridbalance.osm import KM_PER_DEGREE, distance_km
+from gridbalance.osm import KM_PER_DEGREE, distance_km, longitude_near
 from gridbalance.ufds import count, find, union
 
 NEIGHBORS = 3  #candidate lines from each site to its nearest ones
@@ -215,7 +215,11 @@ def project(sites):
   if not sites:
     return []
   scale = KM_PER_DEGREE * math.cos(math.radians(sites[0].lat))
-  return [(site.lon * scale, site.lat * KM_PER_DEGREE) for site in sites]
+  center_lon = sites[0].lon
+  return [
+    (longitude_near(site.lon, center_lon) * scale, site.lat * KM_PER_DEGREE)
+    for site in sites
+  ]
 
 
 def squared_distance(p, q):

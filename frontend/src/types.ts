@@ -14,7 +14,7 @@ export interface Metrics {
 
 export interface BusData {
   index: number
-  id: string | number // OpenStreetMap id, or number of the bus in the case
+  id: string | number
   kind: 'substation' | 'plant' | 'place' | 'bus'
   type: string
   name: string
@@ -32,7 +32,7 @@ export interface BranchData {
   to: number
   cost: number
   capacityMva: number | null // null means unlimited
-  lengthKm: number | null // null when the positions are not real
+  lengthKm: number | null
   kv: number
 }
 
@@ -43,6 +43,7 @@ export interface ExistingLine {
 }
 
 export interface CaseData {
+  caseId: number
   name: string
   costUnit: string
   zone: { lat: number; lon: number; radiusKm: number | null; totalSites: number }
@@ -67,7 +68,6 @@ export interface DesignData extends Metrics {
   elapsedMs: number
 }
 
-// Size and times of one network.
 export interface Measure {
   nodes: number
   lines: number

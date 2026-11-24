@@ -49,14 +49,10 @@ const supplyRows = computed(() =>
 <template>
   <section class="metrics-panel" :class="{ stale: designing }" :aria-busy="designing">
     <h2>{{ zoneName }}</h2>
-    <p class="subtitle">
-      {{
-        step === null
-          ? t('results')
-          : building
-            ? t('chapterTree')
-            : t('stepResults', { step: formatNumber(step) })
-      }}
+    <p v-if="step !== null || designing" class="subtitle">
+      <template v-if="step !== null">
+        {{ building ? t('chapterTree') : t('stepResults', { step: formatNumber(step) }) }}
+      </template>
       <span v-if="designing" role="status">{{ t('updating') }}</span>
     </p>
 
