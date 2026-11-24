@@ -11,10 +11,10 @@ import {
 } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { errorMessage, getApi } from '../api'
 import { resultsCsv } from '../export'
-import { formatMoney, formatNumber } from '../format'
+import { formatCost, formatNumber } from '../format'
 import { locale, t } from '../i18n'
 import {
   branchFeatures,
@@ -36,11 +36,12 @@ import {
   type SourceName,
 } from '../mapStyle'
 import { busName } from '../names'
-import type { LngLat, Place } from '../places'
+import { POLAND, type LngLat, type Place } from '../places'
 import type { Frame } from '../replay'
 import type { BranchData, BusData, CaseData, DesignData, Selection, Weights } from '../types'
 import MapLegend from './MapLegend.vue'
 import PlaceSearch from './PlaceSearch.vue'
+import { showWorldGrid, WORLD_GRID_SOURCE } from '../worldGrid'
 
 const props = defineProps<{
   caseData: CaseData | null
@@ -48,11 +49,13 @@ const props = defineProps<{
   frame: Frame | null // of the replay, while it is open
   weights: Weights
   busy: boolean
+  loading: boolean
   selection: Selection
   darkMode: boolean
 }>()
 
 const radiusKm = defineModel<number | null>('radius', { required: true })
+const worldMode = defineModel<boolean>('world', { required: true })
 
 const emit = defineEmits<{
   place: [place: Place]
@@ -75,7 +78,9 @@ const styleUrl = (dark: boolean) =>
 
 const mapElement = ref<HTMLDivElement>()
 const center = ref<LngLat>(START)
+const radiusDraft = ref<number | ''>('')
 const failed = ref(false)
+const worldFailed = ref(false)
 const showExisting = ref(true)
 const showBridges = ref(false)
 const showUnused = ref(false)
@@ -91,6 +96,7 @@ let hovered = ''
 let hoverTimer: ReturnType<typeof setTimeout> | undefined
 let replay: MapReplay | undefined
 let styleReady = false
+let localLayers: string[] = []
 
 const trimmedNote = computed(() =>
   props.caseData && props.caseData.zone.totalSites > props.caseData.buses.length
@@ -109,23 +115,24 @@ onMounted(() => {
   })
   map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
   map.on('moveend', () => {
-    const { lng, lat } = map!.getCenter()
+    const { lng, lat } = map!.getCenter().wrap()
     center.value = [lng, lat]
   })
   map.on('style.load', () => {
     styleReady = true
     failed.value = false
-    addOverlay(map!)
+    localLayers = addOverlay(map!)
     drawZone()
     drawDesign()
-    applyVisibility()
+    updateWorldLayer()
     applySelection()
     replay = undefined // its states were lost with the old style
     showFrame()
   })
-  map.on('error', () => {
+  map.on('error', (event) => {
     // A missing tile is harmless; without a style there is no map at all.
     if (!styleReady) failed.value = true
+    if ('sourceId' in event && event.sourceId === WORLD_GRID_SOURCE) worldFailed.value = true
   })
   map.on('click', onClick)
   map.on('mousemove', onHover)
@@ -133,6 +140,25 @@ onMounted(() => {
   const dot = document.createElement('div')
   dot.className = 'place-marker'
   marker = new Marker({ element: dot })
+  const benchmark = document.createElement('button')
+  benchmark.type = 'button'
+  benchmark.className = 'benchmark-marker'
+  benchmark.textContent = POLAND.address
+  benchmark.onclick = (event) => {
+    event.stopPropagation()
+    goTo(POLAND)
+  }
+  new Marker({ element: benchmark, anchor: 'bottom', offset: [0, -15] })
+    .setLngLat(POLAND.center)
+    .addTo(map)
+  watch(
+    [locale, worldMode, () => props.caseData],
+    () => {
+      benchmark.title = t('polandCase')
+      benchmark.hidden = !worldMode.value && props.caseData?.zone.radiusKm === null
+    },
+    { immediate: true },
+  )
 })
 
 onUnmounted(() => {
@@ -152,27 +178,39 @@ function drawZone() {
 
 function drawDesign() {
   if (!styleReady || !props.caseData) return
-  const label = (bus: BusData, cost: number) => `${busName(bus)}\n${formatMoney(cost)}`
-  setData('branches', branchFeatures(props.caseData, props.design, formatMoney))
+  const { costUnit } = props.caseData
+  const cost = (value: number) => formatCost(value, costUnit)
+  const label = (bus: BusData, value: number) => `${busName(bus)}\n${cost(value)}`
+  setData('branches', branchFeatures(props.caseData, props.design, cost))
   setData('buses', busFeatures(props.caseData, props.design, label))
 }
 
 function applyVisibility() {
   if (!styleReady) return
-  const show = (layer: string, visible: boolean) =>
-    map!.setLayoutProperty(layer, 'visibility', visible ? 'visible' : 'none')
   const playing = props.frame !== null
-  for (const layer of REPLAY_LAYERS) show(layer, playing)
-  for (const layer of HIDDEN_IN_REPLAY) show(layer, !playing)
-  if (playing) return
-  show('lines-unused', showUnused.value)
-  show('lines-bridge', showBridges.value)
-  show('lines-existing', showExisting.value)
+  const visibleLines: Record<string, boolean> = {
+    'lines-unused': showUnused.value,
+    'lines-bridge': showBridges.value,
+    'lines-existing': showExisting.value,
+  }
+  for (const layer of localLayers) {
+    const visible = REPLAY_LAYERS.includes(layer)
+      ? playing
+      : !(playing && HIDDEN_IN_REPLAY.includes(layer)) && (visibleLines[layer] ?? true)
+    map!.setLayoutProperty(layer, 'visibility', visible && !worldMode.value ? 'visible' : 'none')
+  }
+}
+
+function updateWorldLayer() {
+  if (!map || !styleReady) return
+  worldFailed.value = false
+  showWorldGrid(map, worldMode.value, props.darkMode)
+  applyVisibility()
 }
 
 function showFrame() {
   const { caseData, design, frame } = props
-  if (!styleReady || !caseData || !design || !frame) {
+  if (!styleReady || worldMode.value || !caseData || !design || !frame) {
     replay?.stop()
     replay = undefined
     return
@@ -182,15 +220,17 @@ function showFrame() {
 }
 
 function fitZone() {
-  if (!props.caseData) return
+  if (!props.caseData || worldMode.value) return
   const bounds = new LngLatBounds()
-  for (const point of circlePoints(props.caseData.zone)) bounds.extend(point)
+  const { zone, buses } = props.caseData
+  const points = zone.radiusKm === null ? buses.map(position) : circlePoints(zone)
+  for (const point of points) bounds.extend(point)
   const bottom = props.frame ? REPLAY_HEIGHT : FIT_PADDING.bottom
   map?.fitBounds(bounds, { padding: { ...FIT_PADDING, bottom } })
 }
 
 function featureAt(event: MapMouseEvent) {
-  if (!styleReady || props.frame) return undefined
+  if (!styleReady || worldMode.value || props.frame) return undefined
   const { x, y } = event.point
   const box: [[number, number], [number, number]] = [
     [x - CLICK_TOLERANCE, y - CLICK_TOLERANCE],
@@ -289,25 +329,67 @@ function busPopup(bus: BusData): string[] {
   if (bus.supplyMw > 0) lines.push(`${t('supply')}: ${formatNumber(bus.supplyMw, 1)} MW`)
   if (bus.loadMw > 0) lines.push(`${t('load')}: ${formatNumber(bus.loadMw, 2)} MW`)
   lines.push(
-    `${t('linesCost')}: ${formatMoney(busCosts(props.caseData!, props.design)[bus.index]!)}`,
+    `${t('linesCost')}: ${formatCost(busCosts(props.caseData!, props.design)[bus.index]!, props.caseData!.costUnit)}`,
   )
   return lines
 }
 
 function branchPopup(branch: BranchData): string[] {
-  const { buses } = props.caseData!
+  const { buses, costUnit } = props.caseData!
+  const voltage = `${formatNumber(branch.kv, branch.kv % 1 ? 1 : 0)} kV`
   return [
     `${busName(buses[branch.from]!)} – ${busName(buses[branch.to]!)}`,
-    `${t('cost')}: ${formatMoney(branch.cost)}`,
-    `${formatNumber(branch.lengthKm, 2)} km, ${formatNumber(branch.kv, branch.kv % 1 ? 1 : 0)} kV`,
+    `${t('cost')}: ${formatCost(branch.cost, costUnit)}`,
+    branch.lengthKm === null ? voltage : `${formatNumber(branch.lengthKm, 2)} km, ${voltage}`,
   ]
 }
 
 function goTo(place: Place) {
+  worldMode.value = false
   marker?.setLngLat(place.center).addTo(map!)
-  map?.flyTo({ center: place.center, zoom: START_ZOOM })
+  map?.flyTo({ center: place.center, zoom: place.source === 'poland' ? 5 : START_ZOOM })
   emit('place', place)
 }
+
+async function toggleWorld() {
+  const enabled = !worldMode.value
+  worldMode.value = enabled
+  await nextTick()
+  if (worldMode.value !== enabled) return
+  if (enabled) {
+    clearHover()
+    marker?.remove()
+    map?.fitBounds(
+      [
+        [-179.5, -63],
+        [179.5, 79],
+      ],
+      {
+        padding: { top: 78, right: 20, bottom: 48, left: 20 },
+      animate: false,
+      },
+    )
+  } else if (props.caseData) {
+    const { lon, lat, radiusKm } = props.caseData.zone
+    if (radiusKm !== null && map) marker?.setLngLat([lon, lat]).addTo(map)
+    fitZone()
+  }
+}
+
+function analyzeHere() {
+  const [lon, lat] = map?.getCenter().wrap().toArray() ?? center.value
+  goTo({
+    name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+    address: '',
+    center: [lon, lat],
+    bounds: null,
+  })
+}
+
+watch(radiusKm, (radius) => {
+  radiusDraft.value = radius ?? ''
+})
+watch(worldMode, updateWorldLayer)
 
 async function saveExport(kind: 'png' | 'csv') {
   if (!map || !props.caseData || !props.design) return
@@ -338,7 +420,9 @@ watch(
   (data) => {
     exportSaved.value = false
     if (!data) return
-    marker?.setLngLat([data.zone.lon, data.zone.lat]).addTo(map!)
+    if (worldMode.value) return
+    if (data.zone.radiusKm === null) marker?.remove()
+    else marker?.setLngLat([data.zone.lon, data.zone.lat]).addTo(map!)
     drawZone()
     fitZone()
   },
@@ -373,23 +457,42 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
     <div class="top">
       <div class="search-card">
         <PlaceSearch :near="center" @select="goTo" />
-        <div class="zone-line">
-          <label>
-            {{ t('radius') }}
-            <select v-model="radiusKm" :disabled="busy">
-              <option :value="null">
-                {{
-                  caseData && radiusKm === null
-                    ? t('automaticRadius', { radius: formatNumber(caseData.zone.radiusKm) })
-                    : t('automatic')
-                }}
-              </option>
-              <option v-for="radius in RADII_KM" :key="radius" :value="radius">
-                {{ radius }} km
-              </option>
-            </select>
-          </label>
-          <span v-if="busy" class="busy" role="status">{{ t('designing') }}</span>
+        <div v-if="!worldMode" class="zone-line">
+          <form
+            v-if="caseData?.zone.radiusKm !== null"
+            class="radius-form"
+            @submit.prevent="radiusKm = radiusDraft === '' ? null : Number(radiusDraft)"
+          >
+            <label>
+              {{ t('radius') }} (km)
+              <input
+                v-model.number="radiusDraft"
+                type="number"
+                min="1"
+                max="100"
+                step="any"
+                list="radius-suggestions"
+                :placeholder="caseData?.zone.radiusKm?.toString()"
+                :disabled="busy"
+              />
+            </label>
+            <datalist id="radius-suggestions">
+              <option v-for="radius in RADII_KM" :key="radius" :value="radius" />
+            </datalist>
+            <button type="submit" :disabled="busy">{{ t('applyRadius') }}</button>
+            <button
+              type="button"
+              :aria-pressed="radiusKm === null"
+              :disabled="busy"
+              @click="((radiusDraft = ''), (radiusKm = null))"
+            >
+              {{ t('automatic') }}
+            </button>
+          </form>
+          <span v-else>{{ t('polandCase') }}</span>
+          <span v-if="busy" class="busy" role="status">{{
+            t(loading ? 'loadingNetwork' : 'designing')
+          }}</span>
           <span v-else-if="caseData" :title="trimmedNote">
             {{
               t('networkSize', {
@@ -404,8 +507,15 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
       <div class="actions">
         <span v-if="exporting" class="note" role="status">{{ t('exporting') }}</span>
         <span v-else-if="exportSaved" class="note" role="status">{{ t('exportSaved') }}</span>
-        <button type="button" :disabled="!caseData" @click="fitZone">{{ t('fitView') }}</button>
+        <button type="button" :disabled="busy" :aria-pressed="worldMode" @click="toggleWorld">
+          {{ t('worldView') }}
+        </button>
+        <button type="button" :disabled="busy" @click="analyzeHere">{{ t('analyzeHere') }}</button>
+        <button v-if="!worldMode" type="button" :disabled="!caseData" @click="fitZone">
+          {{ t('fitView') }}
+        </button>
         <button
+          v-if="!worldMode"
           type="button"
           :disabled="!design || busy || exporting"
           :title="t('pngDescription')"
@@ -414,6 +524,7 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
           PNG
         </button>
         <button
+          v-if="!worldMode"
           type="button"
           :disabled="!design || busy || exporting"
           :title="t('csvDescription')"
@@ -425,14 +536,18 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
     </div>
 
     <p v-if="failed" class="failure" role="alert">{{ t('mapLoadError') }}</p>
+    <p v-else-if="worldMode && worldFailed" class="failure" role="status">
+      {{ t('worldGridError') }}
+    </p>
     <div class="bottom">
+      <p v-if="worldMode" class="world-legend">{{ t('worldGridLegend') }}</p>
       <MapLegend
-        v-show="!frame"
+        v-show="!worldMode && !frame"
         v-model:existing="showExisting"
         v-model:bridges="showBridges"
         v-model:unused="showUnused"
       />
-      <slot name="bottom"></slot>
+      <slot v-if="!worldMode" name="bottom"></slot>
     </div>
   </section>
 </template>
@@ -512,18 +627,41 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
   gap: 6px;
 }
 
-.zone-line select {
+.radius-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.radius-form input,
+.radius-form button {
   min-height: 28px;
   padding: 2px 4px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
   color: var(--text);
   font-weight: 600;
 }
 
-.zone-line select:hover:not(:disabled) {
-  border-color: var(--border);
+.radius-form input {
+  width: 62px;
+}
+
+.radius-form button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.map :deep(.benchmark-marker) {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+  font: 600 12px var(--font-ui);
 }
 
 .busy {
@@ -549,6 +687,21 @@ watch([showUnused, showBridges, showExisting], applyVisibility)
   background: none;
   color: var(--text);
   font-size: 13px;
+}
+
+.actions button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.world-legend {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
 }
 
 .note {

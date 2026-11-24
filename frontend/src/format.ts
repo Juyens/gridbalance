@@ -24,3 +24,8 @@ export function formatMoney(thousands: number): string {
     maximumSignificantDigits: 3,
   }).format(thousands * 1000)
 }
+
+export function formatCost(cost: number, unit: string): string {
+  if (unit === 'kUSD') return formatMoney(cost)
+  return `${formatNumber(cost, cost < 100 ? 1 : 0)} ${unit === 'ohm' ? 'Ω' : unit}`
+}

@@ -4,6 +4,7 @@ import { locale, t, type Locale } from '../i18n'
 defineProps<{
   activePanel: 'controls' | 'results' | null
   hasResults: boolean
+  worldMode: boolean
   darkMode: boolean
   themeBusy: boolean
   languageBusy: boolean
@@ -26,6 +27,7 @@ function onLanguageChange(event: Event) {
     <button
       class="tool-button"
       type="button"
+      :disabled="worldMode"
       :aria-expanded="activePanel === 'controls'"
       :aria-controls="activePanel === 'controls' ? 'workspace-panel' : undefined"
       @click="emit('togglePanel', 'controls', $event.currentTarget as HTMLButtonElement)"

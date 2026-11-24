@@ -9,8 +9,14 @@ export interface BackendApi {
   set_theme(theme: 'light' | 'dark'): Promise<void>
   get_language(): Promise<Locale | null>
   set_language(language: Locale): Promise<void>
-  load_zone(lat: number, lon: number, radiusKm: number | null): Promise<CaseData | null>
-  design(weights: Weights): Promise<DesignData>
+  load_zone(
+    lat: number,
+    lon: number,
+    radiusKm: number | null,
+    local?: boolean,
+  ): Promise<CaseData | null>
+  load_case(): Promise<CaseData>
+  design(weights: Weights, caseId?: number): Promise<DesignData>
   save_export(kind: 'png' | 'csv', content: string): Promise<boolean>
 }
 

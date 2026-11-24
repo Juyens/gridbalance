@@ -10,18 +10,23 @@ from tempfile import TemporaryDirectory
 
 import webview
 
-from gridbalance.osm import NoDataError, load_dataset
+from gridbalance.case import load_case
+from gridbalance.osm import NoDataError, load_dataset, longitude_near
+from gridbalance.overpass import load_world_zone
 from gridbalance.reinforcement import Reinforcer, Weights
 from gridbalance.zone import build_zone_grid
 
 
 class Api:
-  def __init__(self, data_dir):
+  def __init__(self, data_dir, case_path=None):
     self._data_dir = data_dir
+    self._case_path = case_path
     self._dataset = None  #read on the first zone
     self._theme_path = Path.home() / ".gridbalance" / "theme"
     self._language_path = Path.home() / ".gridbalance" / "language"
     self._reinforcer = None
+    self._case_id = 0
+    self._last_designed = (None, None)
     #One computation at a time: fast slider moves send calls in parallel.
     self._lock = threading.Lock()
 
@@ -54,22 +59,48 @@ class Api:
     self._language_path.parent.mkdir(parents=True, exist_ok=True)
     self._language_path.write_text(language, encoding="utf-8")
 
-  def load_zone(self, lat, lon, radius_km=None):
+  def load_zone(self, lat, lon, radius_km=None, local=True):
     """Network around a point; None when there is no data near it."""
-    with self._lock:
-      if self._dataset is None:
-        self._dataset = load_dataset(self._data_dir)
-      try:
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+      raise ValueError("coordinates are outside the world map")
+    if radius_km is not None and not 1 <= radius_km <= 100:
+      raise ValueError("radius must be between 1 and 100 km")
+    try:
+      if local:
+        with self._lock:
+          if self._dataset is None:
+            self._dataset = load_dataset(self._data_dir)
         zone = self._dataset.zone(lat, lon, radius_km)
-      except NoDataError:
-        return None
-      zone_grid = build_zone_grid(zone)
-      self._reinforcer = Reinforcer(zone_grid.grid)
-      return zone_to_json(zone_grid, self._reinforcer)
+      else:
+        zone = load_world_zone(lat, lon, radius_km)
+    except NoDataError:
+      return None
+    return self._open(build_zone_grid(zone))
 
-  def design(self, weights):
+  def load_case(self):
+    if self._case_path is None:
+      raise RuntimeError("the MATPOWER case is unavailable")
+    return self._open(load_case(self._case_path))
+
+  def _open(self, zone_grid):
+    reinforcer = Reinforcer(zone_grid.grid)
+    data = zone_to_json(zone_grid, reinforcer)
     with self._lock:
-      reinforcer = self._require_zone()
+      self._reinforcer = reinforcer
+      self._case_id += 1
+      data["caseId"] = self._case_id
+    return data
+
+  def design(self, weights, case_id=None):
+    with self._lock:
+      active = self._require_zone()
+      if case_id is None or case_id == self._case_id:
+        reinforcer = active
+        self._last_designed = (self._case_id, active)
+      else:
+        previous_id, reinforcer = self._last_designed
+        if case_id != previous_id:
+          raise RuntimeError("this network is no longer loaded")
       started = time.perf_counter()
       design = reinforcer.design(
         Weights(weights["cost"], weights["robustness"], weights["supply"])
@@ -135,7 +166,7 @@ def zone_to_json(zone_grid, reinforcer):
         "type": site.type,
         "name": site.name,
         "lat": site.lat,
-        "lon": site.lon,
+        "lon": longitude_near(site.lon, zone.lon),
         "population": site.population,
         "baseKv": bus.base_kv,
         "supplyMw": supply[bus.index],
@@ -159,7 +190,7 @@ def zone_to_json(zone_grid, reinforcer):
       {
         "name": line.name,
         "voltagesKv": line.voltages_kv,
-        "points": [[lon, lat] for lat, lon in line.points],
+        "points": [[longitude_near(lon, zone.lon), lat] for lat, lon in line.points],
       }
       for line in zone.lines
     ],
